@@ -4,6 +4,13 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+          "cache": {
+            "key": "eas-build-bun-${{ hashFiles('bun.lockb', 'bun.lock') }}",
+            "paths": ["~/.bun/install/cache", "node_modules/.cache"]
+          }
+        }
+      },
     "development": {
       "extends": "base",
       "developmentClient": true,
