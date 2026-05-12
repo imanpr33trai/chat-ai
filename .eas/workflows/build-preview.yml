@@ -39,7 +39,7 @@ jobs:
       profile: preview
       message: "PR #${{ github.event.number }}: ${{ github.event.pull_request.title }}"
 
-  # ─── Download and upload APK artifact ────────────────────────────────────
+  # ─── Download APK and post to PR ─────────────────────────────────────────
   download_apk:
     name: Download APK
     needs: [build_preview]

@@ -1,18 +1,47 @@
+# EAS Build — triggered only by release/* branches.
+# Downloads the APK artifact and attaches it to the GitHub Release.
 name: Build
 
 on:
   push:
     branches:
-      - main
+      - 'release/*'
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: latest
 
 jobs:
+  # ─── Build Android APK ────────────────────────────────────────────────────
   build_android:
-    name: Build Android App
+    name: Build Android (APK)
     type: build
+    environment: production
     params:
       platform: android
-  # build_ios:
-  #   name: Build iOS App
-  #   type: build
-  #   params:
-  #     platform: ios
+      profile: production
+      message: "Release build from ${{ github.ref_name }} @ ${{ github.sha }}"
+
+  # ─── Download APK ─────────────────────────────────────────────────────────
+  download_apk:
+    name: Download APK Artifact
+    needs: [build_android]
+    runs_on: linux-large
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/download_build
+        id: apk
+        with:
+          build_id: ${{ needs.build_android.outputs.build_id }}
+          extensions: [apk]
+      - name: Upload APK as GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chat-app-${{ github.ref_name }}-apk
+          path: ${{ steps.apk.outputs.artifact_path }}
+          retention-days: 30

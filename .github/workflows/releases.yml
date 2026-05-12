@@ -1,31 +1,99 @@
-name: Release APK
+name: Release
+
+# Triggers after the EAS workflow builds the APK from release/* branch.
+# It downloads the APK from the EAS build artifact and creates a GitHub Release.
 on:
-  push:
-    tags: ["v*"] # Triggers when you push a tag like v1.0.0
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
 
 jobs:
-  build-and-release:
+  # ─── Download APK from EAS artifact ───────────────────────────────────────
+  download-artifact:
+    name: Download APK
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      artifact_id: ${{ steps.find.outputs.artifact_id }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Expo
-        uses: expo/expo-github-action@v8
+      - name: Find APK artifact
+        id: find
+        run: |
+          # Get artifact ID from the triggering workflow run
+          RUN_ID=${{ github.event.workflow_run.id }}
+          ARTIFACT_ID=$(curl -s -L \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs/${RUN_ID}/artifacts" \
+            | node -e "
+              const fs = require('fs');
+              let data = '';
+              process.stdin.on('data', chunk => data += chunk);
+              process.stdin.on('end', () => {
+                const artifacts = JSON.parse(data).artifacts || [];
+                const apk = artifacts.find(a => a.name.includes('apk'));
+                if (apk) {
+                  console.log(JSON.stringify({ artifact_id: apk.id }));
+                }
+              });
+            ")
+
+          echo "artifact_id=${ARTIFACT_ID}" >> $GITHUB_OUTPUT
+
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
         with:
-          expo-version: latest
-          token: ${{ secrets.EXPO_TOKEN }} # Set this in GitHub Repo Secrets
+          run-id: ${{ github.event.workflow_run.id }}
+          name: chat-app-${{ github.ref_name }}-apk
+          path: ./dist
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
-        run: npm install
+  # ─── Create GitHub Release ─────────────────────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    needs: [download-artifact]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Build APK on EAS
-        # --non-interactive is key for CI; --wait ensures the script waits for completion
-        run: npx eas-build -p android --profile preview --non-interactive --wait --output=app-release.apk
+      - name: Download APK from dist
+        uses: actions/download-artifact@v4
+        with:
+          name: chat-app-${{ github.ref_name }}-apk
+          path: ./dist
+
+      - name: Get version from tag
+        id: version
+        run: |
+          REF_NAME="${{ github.ref_name }}"  # e.g. release/v1.2.3
+          VERSION="${REF_NAME#release/}"     # strip prefix → 1.2.3
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          files: app-release.apk
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          body: |
+            ## chat-app v${{ steps.version.outputs.version }}
+
+            Android APK built via EAS from `${{ github.ref_name }}`.
+
+            **Commit:** `${{ github.event.workflow_run.head_sha }}`
+            **Build run:** ${{ github.event.workflow_run.html_url }}
+
+            Download the APK below.
+          files: dist/*.apk
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

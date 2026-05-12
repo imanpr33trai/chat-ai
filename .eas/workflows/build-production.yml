@@ -1,16 +1,16 @@
-# Builds both Android (APK) and iOS in parallel on push to main.
-# After both succeed: submits to stores, posts results to PR.
-name: Production Build Pipeline
+# CI build on push to main — validates the APK compiles without releasing.
+# Actual releases are triggered by release/* branches via create-production-builds.yml.
+name: Build
 
 on:
   push:
     branches:
       - main
     paths:
-      - "!**/*.md"
-      - "!.gitignore"
-      - "!*.lock"
-      - "!docs/**"
+      - '!**/*.md'
+      - '!.gitignore'
+      - '!*.lock'
+      - '!docs/**'
 
 concurrency:
   cancel_in_progress: true
@@ -21,7 +21,6 @@ defaults:
     bun: latest
 
 jobs:
-  # ─── Build Android APK ────────────────────────────────────────────────────
   build_android:
     name: Build Android (APK)
     type: build
@@ -30,48 +29,3 @@ jobs:
       platform: android
       profile: production
       message: "Build from ${{ github.ref_name }} @ ${{ github.sha }}"
-
-  # ─── Build iOS ─────────────────────────────────────────────────────────────
-  # build_ios:
-  #   name: Build iOS
-  #   type: build
-  #   environment: production
-  #   params:
-  #     platform: ios
-  #     profile: production
-  #     message: "Build from ${{ github.ref_name }} @ ${{ github.sha }}"
-
-  # ─── Submit Android to Play Store ──────────────────────────────────────────
-  # submit_android:
-  #   name: Submit Android
-  #   needs: [build_android]
-  #   type: submit
-  #   environment: production
-  #   params:
-  #     build_id: ${{ needs.build_android.outputs.build_id }}
-  #     profile: production
-
-  # # ─── Submit iOS to App Store ────────────────────────────────────────────────
-  # submit_ios:
-  #   name: Submit iOS
-  #   needs: [build_ios]
-  #   type: submit
-  #   environment: production
-  #   params:
-  #     build_id: ${{ needs.build_ios.outputs.build_id }}
-  #     profile: production
-
-  # ─── Post build report to GitHub ────────────────────────────────────────────
-  # github_comment:
-  #   name: Post Build Report
-  #   after: [build_android, build_ios, submit_android, submit_ios]
-  #   type: github-comment
-  #   environment: production
-  #   params:
-  #     message: |
-  #       ## Production Build Complete
-
-  #       **Android APK:** https://expo.dev/artifacts/${{ needs.build_android.outputs.build_id }}
-  #       **iOS:** https://expo.dev/builds/${{ needs.build_ios.outputs.build_id }}
-
-  #       Submitted to stores on `main` push.
