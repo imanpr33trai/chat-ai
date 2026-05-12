@@ -4,14 +4,7 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "base": {
-      "cache": {
-        "key": "eas-build-v2",
-        "paths": [".npm/_cacache", "node_modules/.cache"]
-      }
-    },
     "development": {
-      "extends": "base",
       "developmentClient": true,
       "android": {
         "distribution": "internal",
@@ -23,14 +16,12 @@
       }
     },
     "preview": {
-      "extends": "base",
       "distribution": "internal",
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "extends": "base",
       "android": {
         "buildType": "apk",
         "autoIncrement": "versionCode"
