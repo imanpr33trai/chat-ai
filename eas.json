@@ -4,12 +4,6 @@
     "appVersionSource": "remote"
   },
   "build": {
-    "base": {
-      "cache": {
-        "key": "eas-build-v1",
-        "paths": [".npm/_cacache", "node_modules/.cache"]
-      }
-    },
     "development": {
       "extends": "base",
       "developmentClient": true,
