@@ -5,14 +5,10 @@
   },
   "build": {
     "base": {
-      "node": "22",
       "bun": "latest",
       "cache": {
         "key": "eas-build-v1",
-        "paths": [
-          ".npm/_cacache",
-          "node_modules/.cache"
-        ]
+        "paths": [".npm/_cacache", "node_modules/.cache"]
       }
     },
     "development": {
