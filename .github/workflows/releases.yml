@@ -27,7 +27,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: bun install
+        run: npm ci
 
       - name: Trigger EAS build
         id: eas_build
