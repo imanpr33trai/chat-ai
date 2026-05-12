@@ -4,19 +4,52 @@
     "appVersionSource": "remote"
   },
   "build": {
+    "base": {
+      "node": "22",
+      "bun": "latest",
+      "cache": {
+        "key": "eas-build-v1",
+        "paths": [
+          ".npm/_cacache",
+          "node_modules/.cache"
+        ]
+      }
+    },
     "development": {
+      "extends": "base",
       "developmentClient": true,
-      "buildType": "apk",
-      "distribution": "internal"
+      "android": {
+        "distribution": "internal",
+        "buildType": "apk",
+        "withoutCredentials": true
+      },
+      "ios": {
+        "simulator": true
+      }
     },
     "preview": {
-      "distribution": "internal"
+      "extends": "base",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "extends": "base",
+      "android": {
+        "buildType": "apk",
+        "autoIncrement": "versionCode"
+      },
+      "ios": {
+        "autoIncrement": "buildNumber"
+      }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "android": {
+        "track": "internal"
+      }
+    }
   }
 }

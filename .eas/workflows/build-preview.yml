@@ -1,0 +1,70 @@
+# Builds a preview APK on every PR push. Downloads the artifact and posts the QR + links to the PR.
+name: Preview Build
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches:
+      - main
+      - develop
+    paths:
+      - "!**/*.md"
+      - "!*.lock"
+      - "!docs/**"
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    bun: latest
+
+jobs:
+  # ─── Preview Build (Android APK) ───────────────────────────────────────────
+  build_preview:
+    name: Build Preview (APK)
+    type: build
+    environment: preview
+    params:
+      platform: android
+      profile: preview
+      message: "PR #${{ github.event.number }}: ${{ github.event.pull_request.title }}"
+
+  # ─── Download and upload APK artifact ────────────────────────────────────
+  download_apk:
+    name: Download APK
+    needs: [build_preview]
+    runs_on: linux-large
+    environment: preview
+    steps:
+      - uses: eas/checkout
+      - uses: eas/download_build
+        id: apk
+        with:
+          build_id: ${{ needs.build_preview.outputs.build_id }}
+          extensions: [apk]
+      - name: Upload APK as GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-apk-${{ github.event.number }}
+          path: ${{ steps.apk.outputs.artifact_path }}
+          retention-days: 7
+
+  # # ─── Post preview link to PR ───────────────────────────────────────────────
+  # github_comment:
+  #   name: Post Preview to PR
+  #   after: [build_preview]
+  #   type: github-comment
+  #   environment: preview
+  #   params:
+  #     message: |
+  #       ## Preview Build Ready
+
+  #       **APK:** https://expo.dev/artifacts/${{ needs.build_preview.outputs.build_id }}
+
+  #       | Platform | Version | Build ID |
+  #       |----------|---------|----------|
+  #       | Android  | ${{ needs.build_preview.outputs.app_version }} | `${{ needs.build_preview.outputs.build_id }}` |
+
+  #       Download the APK from the **Checks** tab above.
