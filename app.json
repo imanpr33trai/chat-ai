@@ -17,14 +17,21 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.imanpr33trai.chatapp"
     },
     "web": {
-      "output": "static",
+      "output": "server",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-router",
+        {
+          "unstable_useServerRendering": true
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -39,6 +46,14 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "unstable_useServerRendering": true
+      },
+      "eas": {
+        "projectId": "3db231b7-032e-4186-b1cf-81a455d98c54"
+      }
     }
   }
 }
