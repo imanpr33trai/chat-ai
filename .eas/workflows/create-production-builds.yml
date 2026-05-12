@@ -3,7 +3,7 @@ name: Build
 on:
   push:
     branches:
-      - Singh
+      - main
 
 jobs:
   build_android:

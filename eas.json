@@ -5,7 +5,6 @@
   },
   "build": {
     "base": {
-      "bun": "latest",
       "cache": {
         "key": "eas-build-v1",
         "paths": [".npm/_cacache", "node_modules/.cache"]
