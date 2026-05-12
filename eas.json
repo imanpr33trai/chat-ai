@@ -6,7 +6,7 @@
   "build": {
     "base": {
       "cache": {
-        "key": "eas-build-bun-${{ hashFiles('bun.lockb', 'bun.lock') }}",
+        "key": "eas-build-v1",
         "paths": [".npm/_cacache", "node_modules/.cache"]
       }
     },
