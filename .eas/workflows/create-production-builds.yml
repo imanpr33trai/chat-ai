@@ -1,11 +1,9 @@
-# EAS Build — triggered only by release/* branches.
-# Downloads the APK artifact and attaches it to the GitHub Release.
 name: Build
 
 on:
   push:
-    branches:
-      - 'release/*'
+    tags:
+      - 'v*'
 
 concurrency:
   cancel_in_progress: true
@@ -24,7 +22,7 @@ jobs:
     params:
       platform: android
       profile: production
-      message: "Release build from ${{ github.ref_name }} @ ${{ github.sha }}"
+      message: "Release build for ${{ github.ref_name }} @ ${{ github.sha }}"
 
   # ─── Download APK ─────────────────────────────────────────────────────────
   download_apk:

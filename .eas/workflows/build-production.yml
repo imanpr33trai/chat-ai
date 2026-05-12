@@ -5,12 +5,12 @@ name: Build
 on:
   push:
     branches:
-      - main
+      - Singh
     paths:
-      - '!**/*.md'
-      - '!.gitignore'
-      - '!*.lock'
-      - '!docs/**'
+      - "!**/*.md"
+      - "!.gitignore"
+      - "!*.lock"
+      - "!docs/**"
 
 concurrency:
   cancel_in_progress: true
