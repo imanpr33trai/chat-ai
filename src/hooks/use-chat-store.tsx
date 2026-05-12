@@ -59,6 +59,7 @@ type Action =
   | { type: 'ADD_MESSAGE'; payload: { conversationId: string; message: Message } }
   | { type: 'UPDATE_MESSAGE'; payload: { conversationId: string; messageId: string; updates: Partial<Message> } }
   | { type: 'SET_DEFAULT_MODEL'; payload: string }
+  | { type: 'CHANGE_MODEL'; payload: { conversationId: string; modelName: string } }
   | { type: 'REGENERATE_MESSAGE'; payload: { conversationId: string; messageId: string } }
 
 function generateId() {
@@ -145,6 +146,15 @@ function reducer(state: State, action: Action): State {
     }
     case 'SET_DEFAULT_MODEL':
       return { ...state, defaultModel: action.payload }
+    case 'CHANGE_MODEL': {
+      const convIndex = state.conversations.findIndex(
+        (c) => c.id === action.payload.conversationId,
+      )
+      if (convIndex === -1) return state
+      const newList = [...state.conversations]
+      newList[convIndex] = { ...newList[convIndex], modelName: action.payload.modelName }
+      return { ...state, conversations: newList }
+    }
     default:
       return state
   }
@@ -175,6 +185,7 @@ interface ChatContextValue {
   toggleStar: (conversationId: string, messageId: string) => void
   cancelStream: () => void
   setDefaultModel: (modelId: string) => void
+  changeModel: (conversationId: string, modelName: string) => void
   getConversation: (id: string) => Conversation | undefined
   saveDraft: (conversationId: string, draft: string) => void
   clearDraft: (conversationId: string) => void
@@ -579,6 +590,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_DEFAULT_MODEL', payload: modelId })
   }, [])
 
+  const changeModel = useCallback((conversationId: string, modelName: string) => {
+    dispatch({ type: 'CHANGE_MODEL', payload: { conversationId, modelName } })
+  }, [])
+
   const getConversation = useCallback(
     (id: string) => state.conversations.find((c) => c.id === id),
     [state.conversations],
@@ -603,6 +618,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         toggleStar,
         cancelStream,
         setDefaultModel,
+        changeModel,
         getConversation,
         saveDraft,
         clearDraft,

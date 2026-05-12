@@ -11,6 +11,7 @@ import {
   Text,
   TextInput,
   View,
+  ActivityIndicator,
 } from "react-native";
 
 import { ChatInput } from "@/components/chat-input";
@@ -19,6 +20,7 @@ import { TypingIndicator } from "@/components/typing-indicator";
 import type { Reaction, ReplyTo } from "@/hooks/use-chat-store";
 import { useChat } from "@/hooks/use-chat-store";
 import { useTheme } from "@/hooks/use-theme";
+import { useModels } from "@/hooks/use-models";
 
 // ─── Edit Modal ─────────────────────────────────────────────────
 
@@ -236,6 +238,201 @@ function SearchModal({
   );
 }
 
+// ─── Model Picker Sheet ─────────────────────────────────────────
+
+function ModelPickerSheet({
+  visible,
+  onClose,
+  currentModel,
+  onSelect,
+}: {
+  visible: boolean
+  onClose: () => void
+  currentModel: string
+  onSelect: (modelId: string) => void
+}) {
+  const theme = useTheme()
+  const { models, loading, error } = useModels()
+  const [search, setSearch] = useState('')
+
+  const filtered = models.filter(
+    (m) =>
+      m.id.toLowerCase().includes(search.toLowerCase()) ||
+      m.name.toLowerCase().includes(search.toLowerCase()) ||
+      m.provider.toLowerCase().includes(search.toLowerCase()),
+  )
+
+  // Group by provider
+  const groups: Record<string, typeof models> = {}
+  for (const m of filtered) {
+    const key = m.provider
+    if (!groups[key]) groups[key] = []
+    groups[key]!.push(m)
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: theme.background }}>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            borderBottomWidth: 0.5,
+            borderBottomColor: theme.backgroundSelected,
+          }}
+        >
+          <Pressable onPress={onClose} hitSlop={12}>
+            <Text style={{ fontSize: 17, color: '#007AFF' }}>Cancel</Text>
+          </Pressable>
+          <Text style={{ fontSize: 17, fontWeight: '600', color: theme.text }}>
+            Switch Model
+          </Text>
+          <View style={{ width: 50 }} />
+        </View>
+
+        {/* Search */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            margin: 12,
+            backgroundColor: theme.backgroundElement,
+            borderRadius: 10,
+            paddingHorizontal: 12,
+          }}
+        >
+          <Text style={{ fontSize: 16, color: theme.textSecondary, marginRight: 8 }}>🔍</Text>
+          <TextInput
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search models..."
+            placeholderTextColor={theme.textSecondary}
+            style={{ flex: 1, fontSize: 16, color: theme.text, paddingVertical: 10 }}
+          />
+          {search.length > 0 && (
+            <Pressable onPress={() => setSearch('')} hitSlop={8}>
+              <Text style={{ fontSize: 16, color: theme.textSecondary }}>✕</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Model list */}
+        <ScrollView style={{ flex: 1 }}>
+          {loading && (
+            <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={{ marginTop: 12, color: theme.textSecondary }}>Loading models...</Text>
+            </View>
+          )}
+
+          {error && (
+            <View style={{ alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 }}>
+              <Text style={{ color: '#FF453A', textAlign: 'center' }}>Failed to load models</Text>
+              <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 8 }}>
+                {error}
+              </Text>
+            </View>
+          )}
+
+          {!loading && !error &&
+            Object.entries(groups).map(([provider, groupModels]) => (
+              <View key={provider}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '600',
+                    color: theme.textSecondary,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                    paddingHorizontal: 16,
+                    paddingTop: 16,
+                    paddingBottom: 6,
+                  }}
+                >
+                  {provider}
+                </Text>
+                {groupModels.map((model) => {
+                  const isSelected = model.id === currentModel
+                  return (
+                    <Pressable
+                      key={model.id}
+                      onPress={() => {
+                        onSelect(model.id)
+                        onClose()
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingHorizontal: 16,
+                        paddingVertical: 12,
+                        backgroundColor:
+                          isSelected ? theme.backgroundSelected : pressed ? theme.backgroundElement : 'transparent',
+                        borderBottomWidth: 0.5,
+                        borderBottomColor: theme.backgroundSelected,
+                      })}
+                    >
+                      <View
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: 10,
+                          borderWidth: 2,
+                          borderColor: isSelected ? '#007AFF' : theme.textSecondary,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          marginRight: 12,
+                        }}
+                      >
+                        {isSelected && (
+                          <View
+                            style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: '#007AFF' }}
+                          />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ fontSize: 15, fontWeight: '500', color: theme.text }}>
+                            {model.name}
+                          </Text>
+                        </View>
+                        <Text
+                          style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}
+                          numberOfLines={1}
+                        >
+                          {model.id}
+                        </Text>
+                      </View>
+                      {isSelected && (
+                        <Text style={{ fontSize: 14, color: '#007AFF' }}>✓</Text>
+                      )}
+                    </Pressable>
+                  )
+                })}
+              </View>
+            ))}
+
+          {!loading && !error && filtered.length === 0 && (
+            <Text
+              style={{
+                textAlign: 'center',
+                color: theme.textSecondary,
+                marginTop: 40,
+                fontSize: 15,
+              }}
+            >
+              No models match "{search}"
+            </Text>
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
+  )
+}
+
 // ─── Date Separator ─────────────────────────────────────────────
 
 function DateSeparator({ date }: { date: Date }) {
@@ -301,6 +498,7 @@ export function ChatView({ id }: { id: string }) {
     toggleReaction,
     togglePin,
     toggleStar,
+    changeModel,
   } = useChat();
 
   const theme = useTheme();
@@ -311,7 +509,8 @@ export function ChatView({ id }: { id: string }) {
   );
   const [showSearch, setShowSearch] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showModelSheet, setShowModelSheet] = useState(false);
 
   const conversation = getConversation(id);
   const isThisStreaming = isStreaming && streaming.conversationId === id;
@@ -429,6 +628,37 @@ export function ChatView({ id }: { id: string }) {
       keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       <Stack.Screen options={{ title: conversation.title }} />
+
+      {/* Model selector row */}
+      <Pressable
+        onPress={() => setShowModelSheet(true)}
+        disabled={isThisStreaming}
+        style={({ pressed }) => ({
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: 8,
+          paddingHorizontal: 16,
+          borderBottomWidth: 0.5,
+          borderBottomColor: theme.backgroundSelected,
+          backgroundColor: theme.background,
+          opacity: isThisStreaming ? 0.5 : pressed ? 0.7 : 1,
+        })}
+      >
+        <View
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: '#34C759',
+            marginRight: 6,
+          }}
+        />
+        <Text style={{ fontSize: 13, color: theme.textSecondary }}>
+          {conversation.modelName}
+        </Text>
+        <Text style={{ fontSize: 11, color: theme.textSecondary, marginLeft: 4 }}>▾</Text>
+      </Pressable>
 
       <ScrollView
         ref={scrollRef}
@@ -583,6 +813,14 @@ export function ChatView({ id }: { id: string }) {
           content: m.content,
           role: m.role,
         }))}
+      />
+
+      {/* Model Picker Sheet */}
+      <ModelPickerSheet
+        visible={showModelSheet}
+        onClose={() => setShowModelSheet(false)}
+        currentModel={conversation.modelName}
+        onSelect={(modelId) => changeModel(id, modelId)}
       />
     </KeyboardAvoidingView>
   );
