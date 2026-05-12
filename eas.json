@@ -6,7 +6,7 @@
   "build": {
     "base": {
       "cache": {
-        "key": "eas-build-v1",
+        "key": "eas-build-v2",
         "paths": [".npm/_cacache", "node_modules/.cache"]
       }
     },
