@@ -41,7 +41,7 @@ jobs:
             --profile production \
             --non-interactive \
             --json \
-            | jq -r '.id')
+            | jq -r '.[0].id')
 
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
