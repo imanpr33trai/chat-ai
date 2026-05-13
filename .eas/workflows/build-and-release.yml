@@ -1,9 +1,13 @@
-name: Create Production Builds
+name: Build  and Release EAS
 
 on:
   push:
     tags:
       - "v*"
+
+# 👇 ADD PERMISSIONS FOR RELEASE CREATION
+permissions:
+  contents: write
 
 concurrency:
   cancel_in_progress: true
@@ -37,9 +41,27 @@ jobs:
         with:
           build_id: ${{ needs.build_android.outputs.build_id }}
           extensions: [apk]
+
       - name: Upload APK as GitHub artifact
         uses: actions/upload-artifact@v4
         with:
           name: chat-app-${{ github.ref_name }}-apk
           path: ${{ steps.apk.outputs.artifact_path }}
           retention-days: 30
+
+      # ─── NEW: Create GitHub Release & attach APK ───────────────────────────
+      - name: Create GitHub Release with APK
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          APK_PATH="${{ steps.apk.outputs.artifact_path }}"
+
+          # Use a clean release title and body
+          RELEASE_TITLE="Release ${TAG}"
+          RELEASE_NOTES="Automated production build for tag ${TAG}"
+
+          gh release create "$TAG" \
+            "$APK_PATH" \
+            --title "$RELEASE_TITLE" \
+            --notes "$RELEASE_NOTES"
