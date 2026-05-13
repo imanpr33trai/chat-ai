@@ -5,7 +5,7 @@ name: Build Production
 on:
   push:
     branches:
-      - Singh
+      - Sing
     paths:
       - "!**/*.md"
       - "!.gitignore"

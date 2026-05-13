@@ -2,8 +2,8 @@ name: Build  and Release EAS
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
 
 # 👇 ADD PERMISSIONS FOR RELEASE CREATION
 permissions:

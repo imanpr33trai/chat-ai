@@ -4,7 +4,7 @@ name: Preview Build
 on:
   push:
     branches:
-      - Singh
+      - Sing
       - develop
     paths:
       - "!**/*.md"

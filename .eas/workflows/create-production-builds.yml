@@ -2,7 +2,7 @@ name: Create Production Builds
 
 on:
   push:
-    tags:
+    branches:
       - "v*"
 
 concurrency:
