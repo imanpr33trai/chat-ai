@@ -6,11 +6,11 @@ interface Message {
   role: Role
   content: string | null
   tool_call_id?: string | null
-  tool_calls?: Array<{
+  tool_calls?: {
     id: string
     type: 'function'
     function: { name: string; arguments: string; description: string }
-  }>
+  }[]
 }
 
 interface ChatRequest {
@@ -35,8 +35,9 @@ interface ParsedChunk {
 
 // ─── Env ─────────────────────────────────────────────────────────
 
-const NVIDIA_BASE_URL = (process.env.NVIDIA_BASE_URL ?? '').trim()
-const NVIDIA_API_KEY = (process.env.NVIDIA_API_KEY ?? process.env.NVDIDIA_API_KEY ?? '').trim()
+// const NVIDIA_BASE_URL = (process.env.NVIDIA_BASE_URL ?? '').trim()
+const PROXY_URL = process.env.EXPO_PUBLIC_API_URL
+// const NVIDIA_API_KEY = (process.env.NVIDIA_API_KEY ?? process.env.NVDIDIA_API_KEY ?? '').trim()
 
 // ─── Validation helpers ──────────────────────────────────────────
 
@@ -93,14 +94,14 @@ function validateRequest(body: unknown): { ok: true; data: ChatRequest } | { ok:
   return {
     ok: true,
     data: {
-      model: b.model as string,
-      messages: b.messages as Message[],
-      temperature: b.temperature as number | undefined,
-      top_p: b.top_p as number | undefined,
-      max_tokens: b.max_tokens as number | undefined,
+      model: b.model,
+      messages: b.messages,
+      temperature: b.temperature,
+      top_p: b.top_p,
+      max_tokens: b.max_tokens,
       tools: b.tools as unknown[] | undefined,
-      seed: b.seed as number | undefined,
-      stream: b.stream as boolean | undefined,
+      seed: b.seed,
+      stream: b.stream,
     },
   }
 }
@@ -115,10 +116,10 @@ export function parseStreamChunk(raw: string): ParsedChunk | null {
     const json = JSON.parse(raw) as {
       id: string
       model: string
-      choices: Array<{
+      choices: {
         delta: { role?: string; content?: string; reasoning_content?: string }
         finish_reason: string | null
-      }>
+      }[]
     }
     const choice = json.choices[0]
     return {
@@ -137,9 +138,9 @@ export function parseStreamChunk(raw: string): ParsedChunk | null {
 // ─── POST /api/chat ──────────────────────────────────────────────
 
 export async function POST(request: Request) {
-  if (!NVIDIA_BASE_URL || !NVIDIA_API_KEY) {
+  if (!PROXY_URL ) {
     return Response.json(
-      { error: 'NVIDIA_BASE_URL and NVIDIA_API_KEY must be set in .env' },
+      { error: 'Proxy url must be set in .env' },
       { status: 500 },
     )
   }
@@ -177,10 +178,10 @@ export async function POST(request: Request) {
 
   let upstream: Response
   try {
-    upstream = await fetch(`${NVIDIA_BASE_URL}/chat/completions`, {
+    upstream = await fetch(`${PROXY_URL}/v1/chat/completions`, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${NVIDIA_API_KEY}`,
+
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),

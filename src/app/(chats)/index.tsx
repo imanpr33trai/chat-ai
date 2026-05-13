@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
-import { ScrollView, View, Text, Pressable, Modal, ActivityIndicator } from 'react-native'
-import { Stack } from 'expo-router'
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated'
 
+import React, { useState } from 'react'
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native'
+import Animated, { FadeInUp } from 'react-native-reanimated'
+
+import { ChatListItem } from '@/components/chat-list-item'
 import { useChat } from '@/hooks/use-chat-store'
 import { useModels } from '@/hooks/use-models'
-import { ChatListItem } from '@/components/chat-list-item'
 import { useTheme } from '@/hooks/use-theme'
-import { useRouter } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 
 // ─── Model Selection Modal ────────────────────────────────────────
 
@@ -66,11 +66,11 @@ function ModelSelectionModal({
             Select Model
           </Text>
           <Pressable onPress={handleStart} disabled={!selectedModel}>
-            <Text 
-              style={{ 
-                fontSize: 17, 
-                fontWeight: 600, 
-                color: selectedModel ? '#007AFF' : theme.textSecondary 
+            <Text
+              style={{
+                fontSize: 17,
+                fontWeight: 600,
+                color: selectedModel ? '#007AFF' : theme.textSecondary
               }}
             >
               Start
@@ -118,7 +118,7 @@ function ModelSelectionModal({
             return (
               <Pressable
                 key={model.id}
-                onPress={() => setSelectedModel(model.id)}
+                onPress={() =>{  setSelectedModel(model.id); }}
                 style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -286,7 +286,7 @@ export default function ChatsScreen() {
 
             {/* New Chat Button */}
             <Pressable
-              onPress={() => setShowModelModal(true)}
+              onPress={() =>{  setShowModelModal(true); }}
               style={({ pressed }) => ({
                 backgroundColor: '#007AFF',
                 paddingVertical: 14,
@@ -317,14 +317,14 @@ export default function ChatsScreen() {
                 }
                 timestamp={conv.updatedAt}
                 modelName={conv.modelName}
-                onPress={() => router.push(`/chat/${conv.id}` as any)}
-                onDelete={() => deleteChat(conv.id)}
+                onPress={() =>{  router.push(`/chat/${conv.id}` as any); }}
+                onDelete={() =>{  deleteChat(conv.id); }}
               />
             ))}
 
             {/* New Chat Button at Bottom */}
             <Pressable
-              onPress={() => setShowModelModal(true)}
+              onPress={() =>{  setShowModelModal(true); }}
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -351,7 +351,7 @@ export default function ChatsScreen() {
       {/* Model Selection Modal */}
       <ModelSelectionModal
         visible={showModelModal}
-        onClose={() => setShowModelModal(false)}
+        onClose={() =>{  setShowModelModal(false); }}
         onSelect={handleNewChat}
       />
     </>

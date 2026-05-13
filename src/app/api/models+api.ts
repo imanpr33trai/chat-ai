@@ -1,8 +1,9 @@
 import { z } from 'zod'
 
 // --- Environment (server-side only) ---
-const NVIDIA_BASE_URL = process.env.NVIDIA_BASE_URL?.trim()
-const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY?.trim() || process.env.NVDIDIA_API_KEY?.trim()
+// const PROXY_URL = process.env.NVIDIA_BASE_URL?.trim()
+const PROXY_URL = process.env.EXPO_PUBLIC_API_URL
+// const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY?.trim() || process.env.NVDIDIA_API_KEY?.trim()
 
 // --- Zod Schemas ---
 const ModelObject = z.object({
@@ -25,15 +26,15 @@ export async function GET(request: Request) {
   const limitNum = limit ? Number(limit) : undefined
 
   // Validate env
-  if (!NVIDIA_BASE_URL || !NVIDIA_API_KEY) {
+  if (!PROXY_URL ) {
     return Response.json(
-      { error: 'NVIDIA_BASE_URL and NVIDIA_API_KEY must be set in .env file' },
+      { error: 'PROXY_URL must be set in .env file' },
       { status: 500 },
     )
   }
 
   // Build target URL
-  const target = new URL(`${NVIDIA_BASE_URL}/models`)
+  const target = new URL(`${PROXY_URL}/v1/models`)
   if (limitNum && !isNaN(limitNum)) {
     target.searchParams.set('limit', String(limitNum))
   }
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
   // Fetch from NVIDIA
   const res = await fetch(target.toString(), {
     headers: {
-      Authorization: `Bearer ${NVIDIA_API_KEY}`,
+
       'Content-Type': 'application/json',
     },
   })
