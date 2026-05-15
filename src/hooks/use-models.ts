@@ -118,7 +118,7 @@ function getModelDescription(modelId: string): string {
   if (id.includes('chat')) return 'Optimized for conversation'
   if (id.includes('instruct')) return 'Fine-tuned for following instructions'
   if (id.includes('code') || id.includes('coder')) return 'Specialized for code generation'
-  if (id.includes('vision')) return 'Supports image understanding'
+  if (id.includes('vision') || id.includes('vl') || id.includes('visual')) return 'Supports image understanding 🖼️'
   if (id.includes('embed')) return 'Text embeddings model'
   return 'General purpose AI model'
 }

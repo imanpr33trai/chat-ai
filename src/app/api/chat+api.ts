@@ -4,7 +4,10 @@ type Role = 'system' | 'context' | 'user' | 'assistant' | 'tool'
 
 interface Message {
   role: Role
-  content: string | null
+  content: string | null | (
+    | { type: 'text'; text: string }
+    | { type: 'image_url'; image_url: { url: string } }
+  )[]
   tool_call_id?: string | null
   tool_calls?: {
     id: string
@@ -65,7 +68,11 @@ function isMessageArray(v: unknown): v is Message[] {
         typeof m === 'object' &&
         m !== null &&
         isRole((m as Message).role) &&
-        (typeof (m as Message).content === 'string' || (m as Message).content === null),
+        (
+          typeof (m as Message).content === 'string' ||
+          (m as Message).content === null ||
+          Array.isArray((m as Message).content)
+        ),
     )
   )
 }

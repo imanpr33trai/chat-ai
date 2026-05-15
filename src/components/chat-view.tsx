@@ -563,8 +563,8 @@ export function ChatView({ id }: { id: string }) {
     );
   }
 
-  const handleSend = (text: string, reply?: ReplyTo) => {
-    sendMessage(id, text, reply);
+  const handleSend = (text: string, reply?: ReplyTo, images?: string[]) => {
+    sendMessage(id, text, reply, images);
     setReplyTo(undefined);
   };
 

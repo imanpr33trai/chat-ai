@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useState, useCallback } from 'react'
 import {
+  Image,
   Platform,
   Pressable,
   Text,
@@ -609,6 +610,25 @@ export function ChatMessageInner({
             {message.thinking ? (
               <ThinkingBubble content={message.thinking} isStreaming={isStreaming} />
             ) : null}
+
+            {/* Attached images */}
+            {message.images && message.images.length > 0 && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginBottom: 6 }}>
+                {message.images.map((uri, idx) => (
+                  <Image
+                    key={idx}
+                    source={{ uri }}
+                    style={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: 12,
+                      borderCurve: 'continuous',
+                    }}
+                    resizeMode="cover"
+                  />
+                ))}
+              </View>
+            )}
 
             {tokens.map((token, ti) => {
               // Render based on token type

@@ -11,7 +11,7 @@ interface StreamCallbacks {
 
 interface StreamOptions {
   model: string;
-  messages: { role: string; content: string | null }[];
+  messages: { role: string; content: string | null | { type: string; text?: string; image_url?: { url: string } }[] }[];
   signal?: AbortSignal;
   temperature?: number;
   max_tokens?: number;

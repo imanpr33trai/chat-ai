@@ -31,6 +31,7 @@ export interface Message {
   starred?: boolean
   replyTo?: ReplyTo
   thinking?: string
+  images?: string[]  // base64 image data URIs for multimodal
 }
 
 export interface Conversation {
@@ -176,7 +177,7 @@ interface ChatContextValue {
   createChat: (title: string, modelName?: string) => string
   deleteChat: (id: string) => void
   deleteMessage: (conversationId: string, messageId: string) => void
-  sendMessage: (conversationId: string, content: string, replyTo?: ReplyTo) => void
+  sendMessage: (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[]) => void
   editMessage: (conversationId: string, messageId: string, newContent: string) => void
   retryMessage: (conversationId: string, messageId: string) => void
   regenerateLastAssistant: (conversationId: string) => void
@@ -322,7 +323,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (conversationId: string, content: string, replyTo?: ReplyTo) => {
+    (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[]) => {
       const conv = state.conversations.find((c) => c.id === conversationId)
       if (!conv) return
 
@@ -334,6 +335,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         timestamp: Date.now(),
         status: 'sending',
         replyTo,
+        images,
       }
       dispatch({
         type: 'ADD_MESSAGE',
@@ -347,15 +349,23 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         return next
       })
 
-      // --- prepare messages array for API (omit assistant content until stream done) ---
+      // --- prepare messages array for API (multimodal content arrays for images) ---
+      function formatContent(msgContent: string, msgImages?: string[]): string | { type: string; text?: string; image_url?: { url: string } }[] {
+        if (!msgImages || msgImages.length === 0) return msgContent
+        const parts: { type: string; text?: string; image_url?: { url: string } }[] = []
+        if (msgContent) parts.push({ type: 'text', text: msgContent })
+        for (const img of msgImages) parts.push({ type: 'image_url', image_url: { url: img } })
+        return parts
+      }
+
       const apiMessages = [
         ...conv.messages
           .filter((m) => m.status !== 'failed')
           .map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        { role: 'user' as const, content },
+            role: m.role,
+            content: formatContent(m.content, m.images),
+          })),
+        { role: 'user' as const, content: formatContent(content, images) },
       ]
 
       // --- kick off streaming via shared helper ---
