@@ -1,20 +1,26 @@
-
+import { Stack, useRouter } from 'expo-router'
 import React, { useState } from 'react'
-import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View
+} from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
 
 import { ChatListItem } from '@/components/chat-list-item'
 import { useChat } from '@/hooks/use-chat-store'
 import { useModels } from '@/hooks/use-models'
 import { useTheme } from '@/hooks/use-theme'
-import { Stack, useRouter } from 'expo-router'
 
 // ─── Model Selection Modal ────────────────────────────────────────
 
 function ModelSelectionModal({
   visible,
   onClose,
-  onSelect,
+  onSelect
 }: {
   visible: boolean
   onClose: () => void
@@ -56,7 +62,7 @@ function ModelSelectionModal({
             paddingHorizontal: 16,
             paddingVertical: 14,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.backgroundSelected,
+            borderBottomColor: theme.backgroundSelected
           }}
         >
           <Pressable onPress={onClose}>
@@ -79,15 +85,12 @@ function ModelSelectionModal({
         </View>
 
         {/* Model List */}
-        <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ padding: 16 }}
-        >
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
           <Text
             style={{
               fontSize: 13,
               color: theme.textSecondary,
-              marginBottom: 12,
+              marginBottom: 12
             }}
           >
             Choose an AI model for this conversation
@@ -107,110 +110,120 @@ function ModelSelectionModal({
               <Text style={{ color: '#FF453A', textAlign: 'center' }}>
                 Failed to load models
               </Text>
-              <Text style={{ color: theme.textSecondary, fontSize: 13, marginTop: 8 }}>
+              <Text
+                style={{
+                  color: theme.textSecondary,
+                  fontSize: 13,
+                  marginTop: 8
+                }}
+              >
                 {error}
               </Text>
             </View>
           )}
 
-          {!loading && !error && models.map((model) => {
-            const isSelected = selectedModel === model.id
-            return (
-              <Pressable
-                key={model.id}
-                onPress={() =>{  setSelectedModel(model.id); }}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  paddingHorizontal: 16,
-                  paddingVertical: 14,
-                  borderRadius: 12,
-                  borderCurve: 'continuous',
-                  backgroundColor: isSelected
-                    ? theme.backgroundSelected
-                    : theme.backgroundElement,
-                  marginBottom: 8,
-                  opacity: pressed ? 0.8 : 1,
-                })}
-              >
-                <View
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: 11,
-                    borderWidth: 2,
-                    borderColor: isSelected ? '#007AFF' : theme.textSecondary,
-                    justifyContent: 'center',
+          {!loading &&
+            !error &&
+            models.map(model => {
+              const isSelected = selectedModel === model.id
+              return (
+                <Pressable
+                  key={model.id}
+                  onPress={() => setSelectedModel(model.id)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
                     alignItems: 'center',
-                    marginRight: 12,
-                  }}
+                    paddingHorizontal: 16,
+                    paddingVertical: 14,
+                    borderRadius: 12,
+                    borderCurve: 'continuous',
+                    backgroundColor: isSelected
+                      ? theme.backgroundSelected
+                      : theme.backgroundElement,
+                    marginBottom: 8,
+                    opacity: pressed ? 0.8 : 1
+                  })}
                 >
-                  {isSelected && (
+                  <View
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 11,
+                      borderWidth: 2,
+                      borderColor: isSelected ? '#007AFF' : theme.textSecondary,
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12
+                    }}
+                  >
+                    {isSelected && (
+                      <View
+                        style={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: 6,
+                          backgroundColor: '#007AFF'
+                        }}
+                      />
+                    )}
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <View
-                      style={{
-                        width: 12,
-                        height: 12,
-                        borderRadius: 6,
-                        backgroundColor: '#007AFF',
-                      }}
-                    />
-                  )}
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <Text
-                      style={{
-                        fontSize: 16,
-                        fontWeight: 600,
-                        color: theme.text,
-                      }}
-                    >
-                      {model.name}
-                    </Text>
-                    <View
-                      style={{
-                        marginLeft: 8,
-                        paddingHorizontal: 6,
-                        paddingVertical: 2,
-                        borderRadius: 4,
-                        backgroundColor: theme.backgroundSelected,
-                      }}
+                      style={{ flexDirection: 'row', alignItems: 'center' }}
                     >
                       <Text
                         style={{
-                          fontSize: 11,
-                          fontWeight: 500,
-                          color: theme.textSecondary,
+                          fontSize: 16,
+                          fontWeight: 600,
+                          color: theme.text
                         }}
                       >
-                        {model.provider}
+                        {model.name}
                       </Text>
+                      <View
+                        style={{
+                          marginLeft: 8,
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                          backgroundColor: theme.backgroundSelected
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: theme.textSecondary
+                          }}
+                        >
+                          {model.provider}
+                        </Text>
+                      </View>
                     </View>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: theme.textSecondary,
+                        marginTop: 2
+                      }}
+                    >
+                      {model.description}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        color: theme.textSecondary,
+                        marginTop: 4,
+                        opacity: 0.7
+                      }}
+                      numberOfLines={1}
+                    >
+                      {model.id}
+                    </Text>
                   </View>
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      color: theme.textSecondary,
-                      marginTop: 2,
-                    }}
-                  >
-                    {model.description}
-                  </Text>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      color: theme.textSecondary,
-                      marginTop: 4,
-                      opacity: 0.7,
-                    }}
-                    numberOfLines={1}
-                  >
-                    {model.id}
-                  </Text>
-                </View>
-              </Pressable>
-            )
-          })}
+                </Pressable>
+              )
+            })}
         </ScrollView>
       </View>
     </Modal>
@@ -246,7 +259,7 @@ export default function ChatsScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               paddingTop: 120,
-              paddingHorizontal: 32,
+              paddingHorizontal: 32
             }}
           >
             <View
@@ -257,17 +270,19 @@ export default function ChatsScreen() {
                 backgroundColor: theme.backgroundElement,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginBottom: 16,
+                marginBottom: 16
               }}
             >
-              <Text style={{ fontSize: 28, color: theme.textSecondary }}>♯</Text>
+              <Text style={{ fontSize: 28, color: theme.textSecondary }}>
+                ♯
+              </Text>
             </View>
             <Text
               style={{
                 fontSize: 20,
                 fontWeight: 600,
                 color: theme.text,
-                marginBottom: 4,
+                marginBottom: 4
               }}
             >
               No conversations yet
@@ -278,7 +293,7 @@ export default function ChatsScreen() {
                 color: theme.textSecondary,
                 textAlign: 'center',
                 lineHeight: 22,
-                marginBottom: 24,
+                marginBottom: 24
               }}
             >
               Start a new chat to begin{'\n'}conversating with AI models
@@ -286,14 +301,16 @@ export default function ChatsScreen() {
 
             {/* New Chat Button */}
             <Pressable
-              onPress={() =>{  setShowModelModal(true); }}
+              onPress={() => {
+                setShowModelModal(true)
+              }}
               style={({ pressed }) => ({
                 backgroundColor: '#007AFF',
                 paddingVertical: 14,
                 paddingHorizontal: 32,
                 borderRadius: 12,
                 borderCurve: 'continuous',
-                opacity: pressed ? 0.8 : 1,
+                opacity: pressed ? 0.8 : 1
               })}
             >
               <Text style={{ color: '#fff', fontSize: 17, fontWeight: 600 }}>
@@ -306,7 +323,7 @@ export default function ChatsScreen() {
             entering={FadeInUp.duration(350).springify()}
             style={{ paddingTop: 8 }}
           >
-            {state.conversations.map((conv) => (
+            {state.conversations.map(conv => (
               <ChatListItem
                 key={conv.id}
                 title={conv.title}
@@ -317,14 +334,20 @@ export default function ChatsScreen() {
                 }
                 timestamp={conv.updatedAt}
                 modelName={conv.modelName}
-                onPress={() =>{  router.push(`/chat/${conv.id}` as any); }}
-                onDelete={() =>{  deleteChat(conv.id); }}
+                onPress={() => {
+                  router.push(`/chat/${conv.id}` as any)
+                }}
+                onDelete={() => {
+                  deleteChat(conv.id)
+                }}
               />
             ))}
 
             {/* New Chat Button at Bottom */}
             <Pressable
-              onPress={() =>{  setShowModelModal(true); }}
+              onPress={() => {
+                setShowModelModal(true)
+              }}
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -334,7 +357,7 @@ export default function ChatsScreen() {
                 marginHorizontal: 16,
                 borderRadius: 12,
                 backgroundColor: theme.backgroundElement,
-                opacity: pressed ? 0.7 : 1,
+                opacity: pressed ? 0.7 : 1
               })}
             >
               <Text style={{ fontSize: 18, marginRight: 8, color: '#007AFF' }}>
@@ -351,7 +374,9 @@ export default function ChatsScreen() {
       {/* Model Selection Modal */}
       <ModelSelectionModal
         visible={showModelModal}
-        onClose={() =>{  setShowModelModal(false); }}
+        onClose={() => {
+          setShowModelModal(false)
+        }}
         onSelect={handleNewChat}
       />
     </>

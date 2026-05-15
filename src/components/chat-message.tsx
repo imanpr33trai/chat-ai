@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from 'react'
+import React, { memo, useMemo, useState, useCallback } from 'react'
 import {
   Platform,
   Pressable,
@@ -273,18 +273,23 @@ function parseBlocks(content: string): Token[] {
       continue;
     }
 
-    // Ordered list
+// Ordered list
     if (line.match(/^\d+\.\s/)) {
-      const items: { num: number; parts: TextPart[] }[] = [];
+      const items: { num: number; parts: TextPart[] }[] = []
       while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
-        const match = lines[i].match(/^(\d+)\.\s(.*)$/);
+        const match = lines[i].match(/^(\d+)\.\s(.*)$/)
         if (match) {
-          items.push({ num: parseInt(match[1], 10), parts: parseInline(match[2]) });
+          items.push({ num: parseInt(match[1], 10), parts: parseInline(match[2]) })
         }
-        i++;
+        i++
       }
-      tokens.push({ type: 'ordered_item', num: items[0]?.num ?? 1, parts: items.map(it => it.parts).flat() });
-      continue;
+      // Flatten all item parts into one block
+      const allParts = items.flatMap(it => it.parts)
+      const startNum = items[0]?.num ?? 1
+      if (allParts.length > 0) {
+        tokens.push({ type: 'ordered_item', num: startNum, parts: allParts })
+      }
+      continue
     }
 
     // Empty line
@@ -317,9 +322,9 @@ function parseBlocks(content: string): Token[] {
 // Helper to render a single TextPart
 function renderPart(p: TextPart, key: number, textColor: string): React.ReactNode {
   if (p.t === 'bold')
-    {return <Text key={key} style={{ fontWeight: '700', color: textColor }}>{p.v}</Text>}
+    {return <Text key={key} style={{ fontWeight: '700', color: textColor }}>{p.v ?? ''}</Text>}
   if (p.t === 'italic')
-    {return <Text key={key} style={{ fontStyle: 'italic', color: textColor }}>{p.v}</Text>}
+    {return <Text key={key} style={{ fontStyle: 'italic', color: textColor }}>{p.v ?? ''}</Text>}
   if (p.t === 'inlineCode')
     {return (
       <Text
@@ -333,7 +338,7 @@ function renderPart(p: TextPart, key: number, textColor: string): React.ReactNod
           color: textColor,
         }}
       >
-        {p.v}
+        {p.v ?? ''}
       </Text>
     )}
   if (p.t === 'link')
@@ -342,10 +347,10 @@ function renderPart(p: TextPart, key: number, textColor: string): React.ReactNod
         key={key}
         style={{ color: '#007AFF', textDecorationLine: 'underline' }}
       >
-        {p.text}
+        {p.text ?? ''}
       </Text>
     )}
-  return <Text key={key}>{p.v}</Text>
+  return <Text key={key}>{p.v ?? ''}</Text>
 }
 
 function InlineText({ content, textColor, isStreaming }: { content: string; textColor: string; isStreaming?: boolean }) {
@@ -601,9 +606,9 @@ export function ChatMessageInner({
             )}
 
             {/* Thinking bubble for assistant messages */}
-            {message.thinking && (
+            {message.thinking ? (
               <ThinkingBubble content={message.thinking} isStreaming={isStreaming} />
-            )}
+            ) : null}
 
             {tokens.map((token, ti) => {
               // Render based on token type
@@ -729,7 +734,7 @@ export function ChatMessageInner({
         )}
 
         {/* Copy button for assistant messages */}
-        {!isUser && message.content && !isStreaming && onCopy && (
+        {!isUser && !!message.content && !isStreaming && onCopy && (
           <Pressable
             onPress={onCopy}
             hitSlop={8}
