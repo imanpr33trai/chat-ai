@@ -1,34 +1,33 @@
-import React, { useMemo, useState, useRef, memo } from 'react'
+import React, { memo, useMemo, useState } from 'react'
 import {
-  View,
-  Text,
-  Pressable,
-  GestureResponderEvent,
   Platform,
+  Pressable,
+  Text,
+  View
 } from 'react-native'
 import Animated, {
   FadeIn,
   FadeInDown,
 } from 'react-native-reanimated'
 
-import { useTheme } from '@/hooks/use-theme'
 import type { Message, MessageStatus, Reaction } from '@/hooks/use-chat-store'
+import { useTheme } from '@/hooks/use-theme'
 import { MessageContextMenu, ReactionPicker } from './message-context-menu'
 
 // ─── Status indicator ────────────────────────────────────────────
 
 function StatusIcon({ status }: { status?: MessageStatus }) {
   const theme = useTheme()
-  
+
   if (!status || status === 'delivered') return null
-  
+
   const icons: Record<MessageStatus, string> = {
     sending: '○',
     sent: '✓',
     delivered: '✓✓',
     failed: '✗',
   }
-  
+
   return (
     <Text
       style={{
@@ -60,7 +59,7 @@ function ReactionDisplay({
   onPress: () => void
 }) {
   if (!reactions || reactions.length === 0) return null
-  
+
   return (
     <Pressable onPress={onPress}>
       <View
@@ -89,7 +88,7 @@ function ReactionDisplay({
 function ReplyIndicator({ content, role }: { content: string; role: 'user' | 'assistant' | 'system' }) {
   const theme = useTheme()
   const preview = content.length > 50 ? content.substring(0, 50) + '...' : content
-  
+
   return (
     <View
       style={{
@@ -123,105 +122,247 @@ function ReplyIndicator({ content, role }: { content: string; role: 'user' | 'as
   )
 }
 
-// ─── Inline markdown renderer ────────────────────────────────────
+// ─── Markdown types ────────────────────────────────────────────────
+
+type Token =
+  | { type: 'h1'; parts: TextPart[] }
+  | { type: 'h2'; parts: TextPart[] }
+  | { type: 'h3'; parts: TextPart[] }
+  | { type: 'bullet_item'; parts: TextPart[] }
+  | { type: 'ordered_item'; num: number; parts: TextPart[] }
+  | { type: 'blockquote'; parts: TextPart[] }
+  | { type: 'code_block'; lang?: string; code: string }
+  | { type: 'paragraph'; parts: TextPart[] };
 
 type TextPart =
   | { t: 'text'; v: string }
   | { t: 'bold'; v: string }
   | { t: 'italic'; v: string }
   | { t: 'inlineCode'; v: string }
+  | { t: 'link'; href: string; text: string };
+
+// ─── Inline parser ──────────────────────────────────────────────────
 
 function parseInline(text: string): TextPart[] {
-  const parts: TextPart[] = []
-  let i = 0
+  const parts: TextPart[] = [];
+  let i = 0;
   while (i < text.length) {
-    // inline code `…`
-    if (text[i] === '`') {
-      const end = text.indexOf('`', i + 1)
-      if (end !== -1) {
-        parts.push({ t: 'inlineCode', v: text.slice(i + 1, end) })
-        i = end + 1
-        continue
+    // Link [text](url)
+    if (text[i] === '[') {
+      const closeBracket = text.indexOf(']', i);
+      if (closeBracket !== -1 && text[closeBracket + 1] === '(') {
+        const closeParen = text.indexOf(')', closeBracket + 1);
+        if (closeParen !== -1) {
+          parts.push({
+            t: 'link',
+            href: text.slice(closeBracket + 2, closeParen),
+            text: text.slice(i + 1, closeBracket),
+          });
+          i = closeParen + 1;
+          continue;
+        }
       }
     }
-    // italic *…*
-    if (text[i] === '*' && text[i + 1] !== '*') {
-      const end = text.indexOf('*', i + 1)
-      if (end !== -1 && text[end - 1] !== '*') {
-        parts.push({ t: 'italic', v: text.slice(i + 1, end) })
-        i = end + 1
-        continue
+    // inline code `…`
+    if (text[i] === '`') {
+      const end = text.indexOf('`', i + 1);
+      if (end !== -1) {
+        parts.push({ t: 'inlineCode', v: text.slice(i + 1, end) });
+        i = end + 1;
+        continue;
       }
     }
     // bold **…**
     if (text[i] === '*' && text[i + 1] === '*') {
-      const end = text.indexOf('**', i + 2)
+      const end = text.indexOf('**', i + 2);
       if (end !== -1) {
-        parts.push({ t: 'bold', v: text.slice(i + 2, end) })
-        i = end + 2
-        continue
+        parts.push({ t: 'bold', v: text.slice(i + 2, end) });
+        i = end + 2;
+        continue;
       }
     }
-    // regular character
-    const start = i
-    while (
-      i < text.length &&
-      !(text[i] === '`') &&
-      !(text[i] === '*')
-    ) {
-      i++
+    // italic *…*
+    if (text[i] === '*' && text[i + 1] !== '*') {
+      const end = text.indexOf('*', i + 1);
+      if (end !== -1 && text[end - 1] !== '*') {
+        parts.push({ t: 'italic', v: text.slice(i + 1, end) });
+        i = end + 1;
+        continue;
+      }
     }
-    parts.push({ t: 'text', v: text.slice(start, i) })
+    // regular text
+    let j = i;
+    while (
+      j < text.length && text[j] !== '`' &&
+      !(text[j] === '*' && text[j + 1] === '*') &&
+      !(text[j] === '*' && text[j + 1] !== '*') &&
+      text[j] !== '['
+    ) {
+      j++;
+    }
+    if (j > i) {
+      parts.push({ t: 'text', v: text.slice(i, j) });
+      i = j;
+    } else {
+      i++;
+    }
   }
-  return parts
+  return parts;
+}
+
+// ─── Block parser ──────────────────────────────────────────────────
+
+function parseBlocks(content: string): Token[] {
+  const lines = content.split('\n');
+  const tokens: Token[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Code block ```...```
+    if (line.startsWith('```')) {
+      const lang = line.slice(3).trim() || undefined;
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing ```
+      tokens.push({ type: 'code_block', lang, code: codeLines.join('\n') });
+      continue;
+    }
+
+    // Headers
+    if (line.startsWith('### ')) {
+      tokens.push({ type: 'h3', parts: parseInline(line.slice(4)) });
+      i++;
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      tokens.push({ type: 'h2', parts: parseInline(line.slice(3)) });
+      i++;
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      tokens.push({ type: 'h1', parts: parseInline(line.slice(2)) });
+      i++;
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].startsWith('> ')) {
+        quoteLines.push(lines[i].slice(2));
+        i++;
+      }
+      tokens.push({ type: 'blockquote', parts: parseInline(quoteLines.join(' ')) });
+      continue;
+    }
+
+    // Unordered list
+    if (line.match(/^[-*]\s/)) {
+      const items: string[] = [];
+      while (i < lines.length && lines[i].match(/^[-*]\s/)) {
+        items.push(lines[i].replace(/^[-*]\s/, ''));
+        i++;
+      }
+      tokens.push({ type: 'bullet_item', parts: parseInline(items.join(' ')) });
+      continue;
+    }
+
+    // Ordered list
+    if (line.match(/^\d+\.\s/)) {
+      const items: { num: number; parts: TextPart[] }[] = [];
+      while (i < lines.length && lines[i].match(/^\d+\.\s/)) {
+        const match = lines[i].match(/^(\d+)\.\s(.*)$/);
+        if (match) {
+          items.push({ num: parseInt(match[1], 10), parts: parseInline(match[2]) });
+        }
+        i++;
+      }
+      tokens.push({ type: 'ordered_item', num: items[0]?.num ?? 1, parts: items.map(it => it.parts).flat() });
+      continue;
+    }
+
+    // Empty line
+    if (line.trim() === '') {
+      i++;
+      continue;
+    }
+
+    // Paragraph
+    const paraLines: string[] = [];
+    while (
+      i < lines.length && lines[i].trim() !== '' &&
+      !lines[i].startsWith('```') && !lines[i].startsWith('#') &&
+      !lines[i].startsWith('>') && !lines[i].match(/^[-*]\s/) &&
+      !lines[i].match(/^\d+\.\s/)
+    ) {
+      paraLines.push(lines[i]);
+      i++;
+    }
+    if (paraLines.length > 0) {
+      tokens.push({ type: 'paragraph', parts: parseInline(paraLines.join(' ')) });
+    }
+  }
+
+  return tokens;
+}
+
+// ─── Inline text renderer ────────────────────────────────────────────
+
+// Helper to render a single TextPart
+function renderPart(p: TextPart, key: number, textColor: string): React.ReactNode {
+  if (p.t === 'bold')
+    {return <Text key={key} style={{ fontWeight: '700', color: textColor }}>{p.v}</Text>}
+  if (p.t === 'italic')
+    {return <Text key={key} style={{ fontStyle: 'italic', color: textColor }}>{p.v}</Text>}
+  if (p.t === 'inlineCode')
+    {return (
+      <Text
+        key={key}
+        style={{
+          fontFamily: 'ui-monospace',
+          fontSize: 14,
+          backgroundColor: 'rgba(128,128,128,0.15)',
+          paddingHorizontal: 4,
+          borderRadius: 3,
+          color: textColor,
+        }}
+      >
+        {p.v}
+      </Text>
+    )}
+  if (p.t === 'link')
+    {return (
+      <Text
+        key={key}
+        style={{ color: '#007AFF', textDecorationLine: 'underline' }}
+      >
+        {p.text}
+      </Text>
+    )}
+  return <Text key={key}>{p.v}</Text>
 }
 
 function InlineText({ content, textColor, isStreaming }: { content: string; textColor: string; isStreaming?: boolean }) {
-  // For streaming content, skip parsing - just render raw text
   if (isStreaming) {
     return (
       <Text style={{ color: textColor, fontSize: 16, lineHeight: 22 }}>
         {content}
       </Text>
-    )
+    );
   }
-  
-  const parts = useMemo(() => parseInline(content), [content])
+
+  const parts = useMemo(() => parseInline(content), [content]);
   return (
     <Text style={{ color: textColor, fontSize: 16, lineHeight: 22 }}>
-      {parts.map((p, i) => {
-        if (p.t === 'bold')
-          return (
-            <Text key={i} style={{ fontWeight: 700, color: textColor }}>
-              {p.v}
-            </Text>
-          )
-        if (p.t === 'italic')
-          return (
-            <Text key={i} style={{ fontStyle: 'italic', color: textColor }}>
-              {p.v}
-            </Text>
-          )
-        if (p.t === 'inlineCode')
-          return (
-            <Text
-              key={i}
-              style={{
-                fontFamily: 'ui-monospace',
-                fontSize: 14,
-                backgroundColor: 'rgba(128,128,128,0.15)',
-                paddingHorizontal: 4,
-                borderRadius: 3,
-                color: textColor,
-              }}
-            >
-              {p.v}
-            </Text>
-          )
-        return <Text key={i}>{p.v}</Text>
-      })}
+      {parts.map((p, i) => renderPart(p, i, textColor))}
     </Text>
-  )
+  );
 }
 
 // ─── Code block renderer ─────────────────────────────────────────
@@ -282,14 +423,14 @@ type ChatMessageProps = {
 export function ThinkingBubble({ content, isStreaming }: { content: string; isStreaming?: boolean }) {
   const theme = useTheme()
   const [collapsed, setCollapsed] = useState(true)
-  
+
   // Clean up the thinking content (remove tags if any)
   const cleanContent = content
     .replace(/<[^>]*>/g, '') // Remove any remaining tags
     .trim()
-  
+
   if (!cleanContent) return null
-  
+
   return (
     <Animated.View
       entering={FadeIn.duration(200)}
@@ -299,7 +440,7 @@ export function ThinkingBubble({ content, isStreaming }: { content: string; isSt
       }}
     >
       <Pressable
-        onPress={() => setCollapsed(!collapsed)}
+        onPress={() =>{  setCollapsed(!collapsed); }}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -316,7 +457,7 @@ export function ThinkingBubble({ content, isStreaming }: { content: string; isSt
           {collapsed ? '▼' : '▲'}
         </Text>
       </Pressable>
-      
+
       {!collapsed && (
         <Animated.View
           entering={FadeIn.duration(150)}
@@ -368,47 +509,16 @@ export function ChatMessageInner({
   const isUser = message.role === 'user'
   const [showMenu, setShowMenu] = useState(false)
   const [showReactions, setShowReactions] = useState(false)
-  const pressTimer = useRef<NodeJS.Timeout | null>(null)
+  // const pressTimer = useRef<NodeJS.Timeout | null>(null)
 
   const bubbleColor = isUser ? '#007AFF' : theme.backgroundElement
   const textColor = isUser ? '#fff' : theme.text
   const align = isUser ? 'flex-end' : 'flex-start'
 
-  // Split content into paragraphs and code blocks
-  // Skip expensive parsing for streaming content - just return raw text
-  const blocks = useMemo(() => {
-    // For streaming content, don't parse - just return as-is
-    if (isStreaming) {
-      return [{ type: 'text' as const, lines: [message.content] }]
-    }
-    
-    const result: { type: 'text'; lines: string[] }[] = []
-    const lines = message.content.split('\n')
-    let i = 0
-    while (i < lines.length) {
-      if (lines[i].startsWith('```')) {
-        // code block
-        const codeLines: string[] = []
-        i++
-        while (i < lines.length && !lines[i].startsWith('```')) {
-          codeLines.push(lines[i])
-          i++
-        }
-        i++ // skip closing ```
-        result.push({ type: 'text' as const, lines: [`␟COD␟${codeLines.join('\n')}`] })
-      } else {
-        const para: string[] = []
-        while (
-          i < lines.length &&
-          !lines[i].startsWith('```')
-        ) {
-          para.push(lines[i])
-          i++
-        }
-        result.push({ type: 'text' as const, lines: para })
-      }
-    }
-    return result
+  // Parse markdown into tokens for rich rendering
+  const tokens = useMemo(() => {
+    if (isStreaming) return [];
+    return parseBlocks(message.content)
   }, [message.content, isStreaming])
 
   const handleLongPress = () => {
@@ -419,16 +529,16 @@ export function ChatMessageInner({
   }
 
   const menuActions = [
-    ...(onCopy ? [{ label: 'Copy', icon: '📋', onPress: onCopy! }] : []),
-    ...(onSearch ? [{ label: 'Search', icon: '🔍', onPress: onSearch! }] : []),
-    ...(onReply ? [{ label: 'Reply', icon: '↩️', onPress: onReply! }] : []),
-    ...(onReaction ? [{ label: 'React', icon: '😊', onPress: () => setShowReactions(true) }] : []),
-    ...(!isUser && onRegenerate ? [{ label: 'Regenerate', icon: '🔄', onPress: onRegenerate! }] : []),
-    ...(isUser && message.status === 'failed' && onRetry ? [{ label: 'Retry', icon: '🔁', onPress: onRetry! }] : []),
-    ...(isUser && onEdit ? [{ label: 'Edit', icon: '✏️', onPress: onEdit! }] : []),
-    ...(onPin ? [{ label: message.pinned ? 'Unpin' : 'Pin', icon: '📌', onPress: onPin! }] : []),
-    ...(onStar ? [{ label: message.starred ? 'Unstar' : 'Star', icon: message.starred ? '⭐' : '☆', onPress: onStar! }] : []),
-    ...(onDelete ? [{ label: 'Delete', icon: '🗑️', destructive: true, onPress: onDelete! }] : []),
+    ...(onCopy ? [{ label: 'Copy', icon: '📋', onPress: onCopy }] : []),
+    ...(onSearch ? [{ label: 'Search', icon: '🔍', onPress: onSearch }] : []),
+    ...(onReply ? [{ label: 'Reply', icon: '↩️', onPress: onReply }] : []),
+    ...(onReaction ? [{ label: 'React', icon: '😊', onPress: () =>{  setShowReactions(true); } }] : []),
+    ...(!isUser && onRegenerate ? [{ label: 'Regenerate', icon: '🔄', onPress: onRegenerate }] : []),
+    ...(isUser && message.status === 'failed' && onRetry ? [{ label: 'Retry', icon: '🔁', onPress: onRetry }] : []),
+    ...(isUser && onEdit ? [{ label: 'Edit', icon: '✏️', onPress: onEdit }] : []),
+    ...(onPin ? [{ label: message.pinned ? 'Unpin' : 'Pin', icon: '📌', onPress: onPin }] : []),
+    ...(onStar ? [{ label: message.starred ? 'Unstar' : 'Star', icon: message.starred ? '⭐' : '☆', onPress: onStar }] : []),
+    ...(onDelete ? [{ label: 'Delete', icon: '🗑️', destructive: true, onPress: onDelete }] : []),
   ]
 
   return (
@@ -495,34 +605,100 @@ export function ChatMessageInner({
               <ThinkingBubble content={message.thinking} isStreaming={isStreaming} />
             )}
 
-            {blocks.map((block, bi) => {
-              if (
-                block.lines.length === 1 &&
-                block.lines[0].startsWith('␟COD␟')
-              ) {
+            {tokens.map((token, ti) => {
+              // Render based on token type
+              if (token.type === 'code_block') {
                 return (
-                  <CodeBlock
-                    key={bi}
-                    code={block.lines[0].slice(6)}
-                  />
+                  <CodeBlock key={ti} code={token.code} />
                 )
               }
 
+              // Render heading
+              if (token.type === 'h1') {
+                return (
+                  <Text key={ti} style={{
+                    fontSize: 20,
+                    fontWeight: '700',
+                    color: textColor,
+                    marginTop: 8,
+                    marginBottom: 4,
+                  }}>
+                    {token.parts.map((p, pi) => renderPart(p, pi, textColor))}
+                  </Text>
+                )
+              }
+              if (token.type === 'h2') {
+                return (
+                  <Text key={ti} style={{
+                    fontSize: 18,
+                    fontWeight: '600',
+                    color: textColor,
+                    marginTop: 6,
+                    marginBottom: 3,
+                  }}>
+                    {token.parts.map((p, pi) => renderPart(p, pi, textColor))}
+                  </Text>
+                )
+              }
+              if (token.type === 'h3') {
+                return (
+                  <Text key={ti} style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: textColor,
+                    marginTop: 4,
+                    marginBottom: 2,
+                  }}>
+                    {token.parts.map((p, pi) => renderPart(p, pi, textColor))}
+                  </Text>
+                )
+              }
+
+              // Render blockquote
+              if (token.type === 'blockquote') {
+                return (
+                  <View key={ti} style={{
+                    borderLeftWidth: 3,
+                    borderLeftColor: textColor === '#fff' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
+                    paddingLeft: 10,
+                    marginVertical: 4,
+                    opacity: 0.8,
+                  }}>
+                    <Text style={{ fontSize: 16, fontStyle: 'italic', color: textColor }}>
+                      {token.parts.map((p, pi) => renderPart(p, pi, textColor))}
+                    </Text>
+                  </View>
+                )
+              }
+
+              // Render list item
+              if (token.type === 'bullet_item') {
+                return (
+                  <View key={ti} style={{ flexDirection: 'row', marginVertical: 2 }}>
+                    <Text style={{ color: textColor, marginRight: 8 }}>•</Text>
+                    <Text style={{ flex: 1, fontSize: 16, lineHeight: 22, color: textColor }}>
+                      {token.parts.map((p, pi) => renderPart(p, pi, textColor))}
+                    </Text>
+                  </View>
+                )
+              }
+
+              if (token.type === 'ordered_item') {
+                return (
+                  <View key={ti} style={{ flexDirection: 'row', marginVertical: 2 }}>
+                    <Text style={{ color: textColor, marginRight: 8 }}>{token.num}.</Text>
+                    <Text style={{ flex: 1, fontSize: 16, lineHeight: 22, color: textColor }}>
+                      {token.parts.map((p, pi) => renderPart(p, pi, textColor))}
+                    </Text>
+                  </View>
+                )
+              }
+
+              // Default: paragraph
               return (
-                <View key={bi} style={{ marginBottom: bi < blocks.length - 1 ? 6 : 0 }}>
-                  {block.lines.map((line, li) =>
-                    line.trim() === '' ? (
-                      <View key={li} style={{ height: 8 }} />
-                    ) : (
-                      <InlineText
-                        key={li}
-                        content={line}
-                        textColor={textColor}
-                        isStreaming={isStreaming}
-                      />
-                    ),
-                  )}
-                </View>
+                <Text key={ti} style={{ fontSize: 16, lineHeight: 22, color: textColor, marginBottom: 6 }}>
+                  {token.parts.map((p, pi) => renderPart(p, pi, textColor))}
+                </Text>
               )
             })}
 
@@ -548,7 +724,7 @@ export function ChatMessageInner({
         {!isUser && message.reactions && message.reactions.length > 0 && (
           <ReactionDisplay
             reactions={message.reactions}
-            onPress={() => setShowReactions(true)}
+            onPress={() =>{  setShowReactions(true); }}
           />
         )}
 
@@ -582,13 +758,13 @@ export function ChatMessageInner({
 
       <MessageContextMenu
         visible={showMenu}
-        onClose={() => setShowMenu(false)}
+        onClose={() =>{  setShowMenu(false); }}
         actions={menuActions}
       />
 
       <ReactionPicker
         visible={showReactions}
-        onClose={() => setShowReactions(false)}
+        onClose={() =>{  setShowReactions(false); }}
         onSelect={onReaction || (() => {})}
         currentReactions={message.reactions}
       />

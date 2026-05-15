@@ -5,6 +5,14 @@ import { z } from 'zod'
 const PROXY_URL = process.env.EXPO_PUBLIC_API_URL
 // const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY?.trim() || process.env.NVDIDIA_API_KEY?.trim()
 
+// --- Debug helper ---
+const DEBUG = process.env.DEBUG_NVIDIA === 'true'
+function debug(label: string, data: unknown) {
+  if (DEBUG) {
+    console.error(`[NVIDIA DEBUG ${label}]`, JSON.stringify(data, null, 2))
+  }
+}
+
 // --- Zod Schemas ---
 const ModelObject = z.object({
   id: z.string(),
@@ -39,6 +47,8 @@ export async function GET(request: Request) {
     target.searchParams.set('limit', String(limitNum))
   }
 
+  debug('REQUEST', { url: target.toString() })
+
   // Fetch from NVIDIA
   const res = await fetch(target.toString(), {
     headers: {
@@ -49,6 +59,7 @@ export async function GET(request: Request) {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '')
+    debug('RESPONSE_ERROR', { status: res.status, body })
     return Response.json(
       { error: `NVIDIA API error (${res.status})`, detail: body },
       { status: res.status },
@@ -57,6 +68,7 @@ export async function GET(request: Request) {
 
   // Parse and validate response
   const raw = await res.json()
+  debug('RESPONSE_OK', { modelCount: raw.data?.length ?? 0 })
   const parsed = ModelsRawResponse.safeParse(raw)
 
   if (!parsed.success) {

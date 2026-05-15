@@ -1,19 +1,18 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
-import {
-  View,
-  TextInput,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  ScrollView,
-  Modal,
-} from 'react-native'
 import * as Haptics from 'expo-haptics'
-import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated'
+import React, { useEffect, useRef, useState } from 'react'
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View
+} from 'react-native'
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated'
 
-import { useTheme } from '@/hooks/use-theme'
 import type { ReplyTo } from '@/hooks/use-chat-store'
+import { useTheme } from '@/hooks/use-theme'
 
 // ─── Slash Commands ─────────────────────────────────────────────
 
@@ -115,7 +114,7 @@ function FormatToolbar({
     <Animated.View
       entering={FadeIn.duration(200)}
       exiting={FadeOut.duration(150)}
-      layout={Layout.springify()}
+      layout={LinearTransition.springify()}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -133,7 +132,7 @@ function FormatToolbar({
       {FORMAT_BUTTONS.map((btn) => (
         <Pressable
           key={btn.label}
-          onPress={() => onFormat(btn.wrap[0], btn.wrap[1])}
+          onPress={() =>{  onFormat(btn.wrap[0], btn.wrap[1]); }}
           style={({ pressed }) => ({
             paddingHorizontal: 12,
             paddingVertical: 6,
@@ -309,7 +308,7 @@ export function ChatInput({
       const timer = setTimeout(() => {
         onSaveDraft(text)
       }, 500)
-      return () => clearTimeout(timer)
+      return () =>{  clearTimeout(timer); }
     }
   }, [text, onSaveDraft])
 
@@ -440,7 +439,7 @@ export function ChatInput({
         }}
       >
         <Pressable
-          onPress={() => setShowFormatToolbar(!showFormatToolbar)}
+          onPress={() =>{  setShowFormatToolbar(!showFormatToolbar); }}
           style={({ pressed }) => ({
             opacity: pressed ? 0.6 : 0.5,
           })}

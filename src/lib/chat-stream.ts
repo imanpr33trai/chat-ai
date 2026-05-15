@@ -96,12 +96,12 @@ export function startStream(
           try {
             const chunk = JSON.parse(data);
             const delta = chunk.choices?.[0]?.delta;
-            
+
             // Handle reasoning/thinking content (DeepSeek R1 and similar)
             const reasoningToken = delta?.reasoning_content ?? "";
             if (reasoningToken) {
               thinkingBuffer += reasoningToken;
-              
+
               // Check for thinking tags to detect when thinking starts/ends
               if (reasoningToken === "<") {
                 inThinking = true;
@@ -119,7 +119,7 @@ export function startStream(
                 callbacks.onThinkingToken?.(reasoningToken);
               }
             }
-            
+
             // Handle regular content
             const token = delta?.content ?? "";
             if (token) {

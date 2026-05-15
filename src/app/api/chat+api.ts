@@ -39,6 +39,16 @@ interface ParsedChunk {
 const PROXY_URL = process.env.EXPO_PUBLIC_API_URL
 // const NVIDIA_API_KEY = (process.env.NVIDIA_API_KEY ?? process.env.NVDIDIA_API_KEY ?? '').trim()
 
+// ─── Debug helper ─────────────────────────────────────────────────
+
+const DEBUG = process.env.DEBUG_NVIDIA === 'true'
+
+function debug(label: string, data: unknown) {
+  if (DEBUG) {
+    console.error(`[NVIDIA DEBUG ${label}]`, JSON.stringify(data, null, 2))
+  }
+}
+
 // ─── Validation helpers ──────────────────────────────────────────
 
 const VALID_ROLES: Role[] = ['system', 'context', 'user', 'assistant', 'tool']
@@ -176,6 +186,13 @@ export async function POST(request: Request) {
   if (seed !== undefined) payload.seed = seed
   if (stream !== undefined) payload.stream = stream
 
+  debug('REQUEST', {
+    upstreamUrl: `${PROXY_URL}/v1/chat/completions`,
+    model,
+    messageCount: messages.length,
+    payload,
+  })
+
   let upstream: Response
   try {
     upstream = await fetch(`${PROXY_URL}/v1/chat/completions`, {
@@ -194,6 +211,11 @@ export async function POST(request: Request) {
 
   if (!upstream.ok) {
     const detail = await upstream.text().catch(() => '')
+    debug('RESPONSE_ERROR', {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      detail,
+    })
     return Response.json(
       { error: `NVIDIA API error (${upstream.status})`, detail },
       { status: upstream.status },
