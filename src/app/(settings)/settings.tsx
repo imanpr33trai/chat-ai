@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ScrollView, View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, Pressable, ActivityIndicator, TextInput, Alert } from 'react-native';
 import { Stack } from 'expo-router';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -7,6 +7,7 @@ import { useChat } from '@/hooks/use-chat-store';
 import { useTheme } from '@/hooks/use-theme';
 import { useModels } from '@/hooks/use-models';
 import { writeModelCache, clearModelCache, mergeIntoCache, readModelCache } from '@/lib/model-cache';
+import { getApiKey, setApiKey, clearApiKey, loadApiKey } from '@/lib/api-key';
 
 function SettingsRow({
   title,
@@ -131,6 +132,39 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const { state, setDefaultModel } = useChat();
   const { models, allModels, loading, error } = useModels();
+
+  // API key state
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [savedKey, setSavedKey] = useState('');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const stored = await loadApiKey();
+      if (stored) {
+        setSavedKey(stored);
+        setApiKeyInput(stored);
+      }
+    })();
+  }, []);
+
+  const handleSaveApiKey = async () => {
+    const trimmed = apiKeyInput.trim();
+    if (!trimmed) {
+      Alert.alert('Error', 'API key cannot be empty');
+      return;
+    }
+    await setApiKey(trimmed);
+    setSavedKey(trimmed);
+    setShowKeyInput(false);
+  };
+
+  const handleClearApiKey = async () => {
+    await clearApiKey();
+    setSavedKey('');
+    setApiKeyInput('');
+    setShowKeyInput(false);
+  };
 
   // Per-model verification state: modelId → 'idle' | 'verifying' | 'available' | 'unavailable' | 'timeout'
   const [verifyState, setVerifyState] = useState<Record<string, string>>({});
@@ -264,6 +298,105 @@ export default function SettingsScreen() {
               </View>
             );
           },
+        },
+      ],
+    },
+    {
+      title: 'API Key',
+      data: [
+        {
+          key: 'api_key',
+          render: () => (
+            <View style={{ paddingHorizontal: 16, paddingVertical: 12 }}>
+              {showKeyInput ? (
+                <View>
+                  <TextInput
+                    value={apiKeyInput}
+                    onChangeText={setApiKeyInput}
+                    placeholder="nvapi-..."
+                    placeholderTextColor={theme.textSecondary}
+                    secureTextEntry
+                    autoFocus
+                    style={{
+                      fontSize: 15,
+                      color: theme.text,
+                      backgroundColor: theme.backgroundElement,
+                      borderRadius: 8,
+                      paddingHorizontal: 10,
+                      paddingVertical: 8,
+                      marginBottom: 8,
+                    }}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Pressable
+                      onPress={handleSaveApiKey}
+                      style={({ pressed }) => ({
+                        flex: 1,
+                        paddingVertical: 8,
+                        borderRadius: 8,
+                        backgroundColor: '#007AFF',
+                        alignItems: 'center',
+                        opacity: pressed ? 0.7 : 1,
+                      })}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>Save</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={() => setShowKeyInput(false)}
+                      style={({ pressed }) => ({
+                        paddingVertical: 8,
+                        paddingHorizontal: 16,
+                        borderRadius: 8,
+                        opacity: pressed ? 0.7 : 1,
+                      })}
+                    >
+                      <Text style={{ color: theme.textSecondary, fontSize: 14 }}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : (
+                <View>
+                  <Text style={{ fontSize: 15, color: theme.text }}>
+                    {savedKey
+                      ? `Key: ${savedKey.slice(0, 8)}...${savedKey.slice(-4)}`
+                      : 'No API key set'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>
+                    Used for direct NVIDIA API calls from the app
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <Pressable
+                      onPress={() => setShowKeyInput(true)}
+                      style={({ pressed }) => ({
+                        paddingVertical: 6,
+                        paddingHorizontal: 12,
+                        borderRadius: 6,
+                        backgroundColor: theme.backgroundElement,
+                        opacity: pressed ? 0.7 : 1,
+                      })}
+                    >
+                      <Text style={{ fontSize: 13, color: '#007AFF' }}>
+                        {savedKey ? 'Change' : 'Add Key'}
+                      </Text>
+                    </Pressable>
+                    {savedKey.length > 0 && (
+                      <Pressable
+                        onPress={handleClearApiKey}
+                        style={({ pressed }) => ({
+                          paddingVertical: 6,
+                          paddingHorizontal: 12,
+                          borderRadius: 6,
+                          opacity: pressed ? 0.7 : 1,
+                        })}
+                      >
+                        <Text style={{ fontSize: 13, color: '#FF453A' }}>Remove</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              )}
+            </View>
+          ),
         },
       ],
     },

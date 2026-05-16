@@ -116,10 +116,14 @@ export async function GET(request: Request) {
 
   debug('REQUEST', { url: target.toString() })
 
+  // Forward API key from client if provided
+  const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '')
+
   // Fetch from proxy
   const res = await fetch(target.toString(), {
     headers: {
       'Content-Type': 'application/json',
+      ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
     },
     signal: AbortSignal.timeout(30_000),
   })

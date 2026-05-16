@@ -63,7 +63,7 @@
 - **Fix:** Add system prompt editor per conversation (or per chat). Include it as the first message in `apiMessages`.
 
 ### 9. `parseStreamChunk` Dead Code
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **File:** `src/app/api/chat+api.ts` (lines 121–146)
 - **Issue:** `parseStreamChunk()` is exported but never imported or used anywhere. The streaming path just passes through the raw upstream body. Meanwhile, the frontend's `chat-stream.ts` duplicates similar parsing logic.
 - **Fix:** Either delete the function or use it in the API route to transform the SSE stream (e.g., add error handling, inject metadata).
@@ -79,17 +79,17 @@
 ## 🟢 Should Add (features expected in a chat app)
 
 ### 11. Conversation Title Editing
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Issue:** Titles are auto-generated from the first message and cannot be changed.
 - **Fix:** Add `UPDATE_CONVERSATION` action to the reducer. Add title edit in settings or long-press on conversation list.
 
 ### 12. No Message Search Within a Conversation
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Issue:** `conversation-search.tsx` searches conversation titles, but there's no way to search within a single conversation's messages.
 - **Fix:** Add a find-in-page/search overlay to the chat view.
 
 ### 13. No Token Count / Usage Display
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Issue:** Users can't see how many tokens they're using per message or conversation total.
 - **Fix:** Parse usage data from API responses (NVIDIA returns `usage.prompt_tokens`, `usage.completion_tokens`). Display near the message or in conversation info.
 
@@ -104,7 +104,7 @@
 - **Fix:** Add export (JSON/MD) and import functionality in settings.
 
 ### 16. No Tool/Function Calling UI
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Files:** `src/app/api/chat+api.ts` supports `tool_calls` in the schema
 - **Issue:** The frontend never sends or displays tool calls / function results. The API route has full support, but the UI doesn't expose it.
 - **Fix:** If the model returns `tool_calls`, display them in the chat bubble (with call status, arguments, results).
@@ -119,55 +119,55 @@
 ## 🟣 Code Quality & Technical Debt
 
 ### 18. Old `create-expo-app` Boilerplate Still Present
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Files:** `src/app/old_routes/explore.tsx`, `src/app/old_routes/index.tsx`, `src/components/ui/collapsible.tsx`, `src/components/external-link.tsx`, `src/components/themed-text.tsx`, `src/components/themed-view.tsx`, `src/components/web-badge.tsx`, `src/components/hint-row.tsx`
 - **Issue:** These files are never imported by the app. They exist from the initial `create-expo-app` template.
 - **Fix:** Delete all unused files from `old_routes/`, `components/ui/`, and individual unused components.
 
 ### 19. `use-color-scheme` Hook Duplicated
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Files:** `src/hooks/use-color-scheme.ts`, `src/hooks/use-color-scheme.web.ts`
 - **Issue:** Custom hook files exist but `useColorScheme` from `react-native` is used directly in most places. These custom hooks are never imported.
 - **Fix:** Delete if unused, or consolidate.
 
 ### 20. Web/Native Platform Split Patterns Incomplete
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Files:** `src/components/animated-icon.tsx`, `src/components/animated-icon.web.tsx`, `src/components/app-tabs.tsx`, `src/components/app-tabs.web.tsx`
 - **Issue:** Some components have `.web.tsx` variants but the app doesn't properly leverage web-specific behavior. The `.web.tsx` files may be stale.
 - **Fix:** Audit whether the web split is needed. If not, consolidate to single files.
 
 ### 21. Manual Validation Inconsistency — Zod Used in One Route Only
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Files:** `src/app/api/models+api.ts` uses Zod; `src/app/api/chat+api.ts` and `src/app/api/generate/video+api.ts` use manual validation.
 - **Issue:** Different validation patterns across routes. Manual validation is error-prone and verbose.
 - **Fix:** Standardize on Zod (already a dependency) for all API route validation.
 
 ### 22. `.env.example` Outdated
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **File:** `.env.example`
 - **Issue:** Shows `NVIDIA_BASE_URL` and `NVIDIA_API_KEY` but the code actually uses `EXPO_PUBLIC_API_URL` and the typo-fallback `NVDIDIA_API_KEY`.
 - **Fix:** Update `.env.example` to reflect actual env vars used.
 
 ### 23. No `max_tokens`, `temperature`, or `stream` Override from Client
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **File:** `src/hooks/use-chat-store.tsx` → `startStreamFromMessages`
 - **Issue:** Temperature is always 0.7. Max tokens is never sent. Stream is always true. These should be configurable.
 - **Fix:** Expose as parameters to `sendMessage` / `startStream`.
 
 ### 24. Hardcoded Debug Flag (DEBUG_NVIDIA)
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **Files:** `src/app/api/chat+api.ts`, `src/app/api/models+api.ts`
 - **Issue:** `DEBUG_NVIDIA` env var gates verbose logging. This is a per-request string check that should use a module-level constant instead.
 - **Fix:** Read once at module init, not per request.
 
 ### 25. No Request Timeout on Models Fetch
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **File:** `src/app/api/models+api.ts`
 - **Issue:** The upstream fetch to `{PROXY_URL}/v1/models` has no timeout. If the proxy hangs, the API route hangs indefinitely (Expo/CF Workers have a 30s limit, but still).
 - **Fix:** Add `AbortSignal.timeout(30_000)` to the upstream fetch.
 
 ### 26. `generateId()` Uses Math.random
-- **Status:** ⬜ Not implemented
+- **Status:** ✅ Implemented
 - **File:** `src/hooks/use-chat-store.tsx` (line 66)
 - **Issue:** `Math.random().toString(36).substring(2, 10)` produces weak IDs with collision risk at scale.
 - **Fix:** Use `crypto.randomUUID()` or a proper ULID library.

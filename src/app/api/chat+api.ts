@@ -75,6 +75,9 @@ export async function POST(request: Request) {
 
   const { model, messages, temperature, top_p, max_tokens, tools, seed, stream } = parsed.data
 
+  // Forward API key from client if provided
+  const apiKey = request.headers.get('x-api-key') || request.headers.get('authorization')?.replace('Bearer ', '')
+
   const payload: Record<string, unknown> = {
     model,
     messages: messages.map((m) => {
@@ -104,6 +107,7 @@ export async function POST(request: Request) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(300_000),

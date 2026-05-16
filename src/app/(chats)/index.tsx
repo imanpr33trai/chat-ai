@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View
 } from 'react-native'
 import Animated, { FadeInUp } from 'react-native-reanimated'
@@ -233,15 +234,35 @@ function ModelSelectionModal({
 // ─── Main Screen ──────────────────────────────────────────────────
 
 export default function ChatsScreen() {
-  const { state, deleteChat, createChat } = useChat()
+  const { state, deleteChat, createChat, updateConversation } = useChat()
   const theme = useTheme()
   const router = useRouter()
   const [showModelModal, setShowModelModal] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null)
+  const [renameText, setRenameText] = useState('')
 
   const handleNewChat = (modelId: string, modelName: string) => {
     const title = `Chat with ${modelName}`
     const id = createChat(title, modelId)
     router.push(`/chat/${id}` as any)
+  }
+
+  const handleRenameStart = (convId: string, currentTitle: string) => {
+    setRenameText(currentTitle)
+    setRenameTarget({ id: convId, title: currentTitle })
+  }
+
+  const handleRenameConfirm = () => {
+    if (renameTarget && renameText.trim()) {
+      updateConversation(renameTarget.id, { title: renameText.trim() })
+    }
+    setRenameTarget(null)
+    setRenameText('')
+  }
+
+  const handleRenameCancel = () => {
+    setRenameTarget(null)
+    setRenameText('')
   }
 
   return (
@@ -340,6 +361,7 @@ export default function ChatsScreen() {
                 onDelete={() => {
                   deleteChat(conv.id)
                 }}
+                onRename={() => handleRenameStart(conv.id, conv.title)}
               />
             ))}
 
@@ -379,6 +401,93 @@ export default function ChatsScreen() {
         }}
         onSelect={handleNewChat}
       />
+
+      {/* Rename Conversation Modal */}
+      <Modal
+        visible={renameTarget !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={handleRenameCancel}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.4)',
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+        >
+          <Pressable
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+            onPress={handleRenameCancel}
+          />
+          <View
+            style={{
+              backgroundColor: theme.background,
+              borderRadius: 14,
+              padding: 24,
+              width: '80%',
+              maxWidth: 400,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: theme.text,
+                marginBottom: 16,
+                textAlign: 'center',
+              }}
+            >
+              Rename Conversation
+            </Text>
+            <TextInput
+              style={{
+                backgroundColor: theme.backgroundElement,
+                borderRadius: 10,
+                padding: 12,
+                fontSize: 16,
+                color: theme.text,
+                marginBottom: 20,
+              }}
+              placeholder="Enter new title"
+              placeholderTextColor={theme.textSecondary}
+              value={renameText}
+              onChangeText={setRenameText}
+              autoFocus
+              selectTextOnFocus
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Pressable
+                onPress={handleRenameCancel}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  marginRight: 8,
+                  borderRadius: 10,
+                  backgroundColor: theme.backgroundElement,
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 16, color: theme.textSecondary }}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleRenameConfirm}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  marginLeft: 8,
+                  borderRadius: 10,
+                  backgroundColor: '#007AFF',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: 600, color: '#fff' }}>Save</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   )
 }

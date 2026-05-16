@@ -1,17 +1,16 @@
-// ─── Model availability check ──────────────────────────────────
-// Minimal request to verify a model is actually available.
-// Supports single model { model: "..." } or batch { models: [...] }.
-
 const PROXY_URL = process.env.EXPO_PUBLIC_API_URL
 
 const NOT_FOUND_SIGNALS = ['Not Found', 'not_found', 'model_not_found', 'resp_error']
-const CONCURRENCY = 10 // max parallel validations per batch request
+const CONCURRENCY = 10
 
-async function checkSingle(model: string, timeoutMs = 10_000): Promise<boolean> {
+async function checkSingle(model: string, timeoutMs = 10_000, bearerToken?: string): Promise<boolean> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (bearerToken) headers['Authorization'] = `Bearer ${bearerToken}`
+
     const upstream = await fetch(`${PROXY_URL}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         model,
         messages: [{ role: 'user', content: '.' }],
@@ -42,13 +41,19 @@ async function checkSingle(model: string, timeoutMs = 10_000): Promise<boolean> 
   }
 }
 
+function extractBearerToken(request: Request): string | undefined {
+  return (
+    request.headers.get('x-api-key') ||
+    request.headers.get('authorization')?.replace('Bearer ', '')
+  ) || undefined
+}
+
 export async function POST(request: Request) {
   if (!PROXY_URL) {
-    return Response.json(
-      { error: 'PROXY_URL must be set in .env file' },
-      { status: 500 },
-    )
+    return Response.json({ error: 'PROXY_URL must be set in .env file' }, { status: 500 })
   }
+
+  const bearerToken = extractBearerToken(request)
 
   let body: Record<string, unknown>
   try {
@@ -57,22 +62,21 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  // Single model check
   if (typeof body.model === 'string') {
     const timeoutMs = typeof body.timeout === 'number' ? body.timeout : 10_000
-    const available = await checkSingle(body.model, timeoutMs)
+    const available = await checkSingle(body.model, timeoutMs, bearerToken)
     return Response.json({ available })
   }
 
-  // Batch check
   if (Array.isArray(body.models) && body.models.length > 0) {
     const allModels = body.models.filter((m): m is string => typeof m === 'string')
     const results: Record<string, boolean> = {}
 
-    // Process in batches of CONCURRENCY
     for (let i = 0; i < allModels.length; i += CONCURRENCY) {
       const batch = allModels.slice(i, i + CONCURRENCY)
-      const outcomes = await Promise.allSettled(batch.map(checkSingle))
+      const outcomes = await Promise.allSettled(
+        batch.map((m) => checkSingle(m, 10_000, bearerToken))
+      )
       for (let j = 0; j < batch.length; j++) {
         const outcome = outcomes[j]
         results[batch[j]] = outcome.status === 'fulfilled' ? outcome.value : false

@@ -33,6 +33,7 @@ export interface Message {
   thinking?: string
   images?: string[]  // base64 image data URIs for multimodal
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+  tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[]
 }
 
 export interface Conversation {
@@ -63,6 +64,7 @@ type Action =
   | { type: 'SET_DEFAULT_MODEL'; payload: string }
   | { type: 'CHANGE_MODEL'; payload: { conversationId: string; modelName: string } }
   | { type: 'REGENERATE_MESSAGE'; payload: { conversationId: string; messageId: string } }
+  | { type: 'UPDATE_CONVERSATION'; payload: { conversationId: string; updates: Partial<Pick<Conversation, 'title'>> } }
 
 function generateId() {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -161,6 +163,19 @@ function reducer(state: State, action: Action): State {
       newList[convIndex] = { ...newList[convIndex], modelName: action.payload.modelName }
       return { ...state, conversations: newList }
     }
+    case 'UPDATE_CONVERSATION': {
+      const convIndex = state.conversations.findIndex(
+        (c) => c.id === action.payload.conversationId,
+      )
+      if (convIndex === -1) return state
+      const newList = [...state.conversations]
+      newList[convIndex] = {
+        ...newList[convIndex],
+        ...action.payload.updates,
+        updatedAt: Date.now(),
+      }
+      return { ...state, conversations: newList }
+    }
     default:
       return state
   }
@@ -192,6 +207,7 @@ interface ChatContextValue {
   cancelStream: () => void
   setDefaultModel: (modelId: string) => void
   changeModel: (conversationId: string, modelName: string) => void
+  updateConversation: (conversationId: string, updates: Partial<Pick<Conversation, 'title'>>) => void
   getConversation: (id: string) => Conversation | undefined
   saveDraft: (conversationId: string, draft: string) => void
   clearDraft: (conversationId: string) => void
@@ -283,7 +299,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             streamingThinkingRef.current += token
             scheduleFlush()
           },
-          onDone: (fullContent, thinkingContent, usage) => {
+          onDone: (fullContent, thinkingContent, toolCalls, usage) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current)
               rafIdRef.current = null
@@ -295,6 +311,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               timestamp: Date.now(),
               status: 'delivered',
               thinking: thinkingContent,
+              tool_calls: toolCalls,
               usage,
             }
             dispatch({
@@ -591,6 +608,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'CHANGE_MODEL', payload: { conversationId, modelName } })
   }, [])
 
+  const updateConversation = useCallback(
+    (conversationId: string, updates: Partial<Pick<Conversation, 'title'>>) => {
+      dispatch({ type: 'UPDATE_CONVERSATION', payload: { conversationId, updates } })
+    },
+    [],
+  )
+
   const getConversation = useCallback(
     (id: string) => state.conversations.find((c) => c.id === id),
     [state.conversations],
@@ -616,6 +640,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         cancelStream,
         setDefaultModel,
         changeModel,
+        updateConversation,
         getConversation,
         saveDraft,
         clearDraft,

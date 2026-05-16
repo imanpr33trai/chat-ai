@@ -405,6 +405,76 @@ function CodeBlock({ code }: { code: string }) {
   )
 }
 
+// ─── Tool Call Display ─────────────────────────────────────────
+
+function ToolCallDisplay({ toolCalls, isStreaming }: { toolCalls: NonNullable<Message['tool_calls']>; isStreaming?: boolean }) {
+  const theme = useTheme()
+  if (!toolCalls || toolCalls.length === 0) return null
+
+  return (
+    <View style={{ marginVertical: 6, gap: 6 }}>
+      {toolCalls.map((tc, i) => {
+        const bg =
+          theme.background === '#ffffff'
+            ? 'rgba(88, 86, 214, 0.08)'
+            : 'rgba(88, 86, 214, 0.15)'
+
+        let formattedArgs = tc.function.arguments
+        try {
+          formattedArgs = JSON.stringify(JSON.parse(tc.function.arguments), null, 2)
+        } catch {
+          // Not valid JSON yet (streaming), show as-is
+        }
+
+        return (
+          <View
+            key={tc.id || i}
+            style={{
+              backgroundColor: bg,
+              borderRadius: 8,
+              borderCurve: 'continuous',
+              padding: 10,
+              borderLeftWidth: 3,
+              borderLeftColor: '#5856D6',
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: '#5856D6', marginRight: 6 }}>
+                🔧 {tc.function.name}
+              </Text>
+              {isStreaming && (
+                <View
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: '#FF9F0A',
+                    opacity: 0.8,
+                  }}
+                />
+              )}
+              {!isStreaming && (
+                <Text style={{ fontSize: 11, color: theme.textSecondary }}>✓ complete</Text>
+              )}
+            </View>
+            <Text
+              selectable
+              style={{
+                fontFamily: 'ui-monospace',
+                fontSize: 12,
+                lineHeight: 16,
+                color: theme.text,
+              }}
+            >
+              {formattedArgs || (isStreaming ? '…' : '{}')}
+            </Text>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
 // ─── Main component ──────────────────────────────────────────────
 
 type ChatMessageProps = {
@@ -610,6 +680,11 @@ export function ChatMessageInner({
             {message.thinking ? (
               <ThinkingBubble content={message.thinking} isStreaming={isStreaming} />
             ) : null}
+
+            {/* Tool calls display */}
+            {message.tool_calls && message.tool_calls.length > 0 && (
+              <ToolCallDisplay toolCalls={message.tool_calls} isStreaming={isStreaming} />
+            )}
 
             {/* Attached images */}
             {message.images && message.images.length > 0 && (
@@ -826,6 +901,7 @@ export const ChatMessage = memo(ChatMessageInner, (prevProps, nextProps) => {
     prevProps.message.content === nextProps.message.content &&
     prevProps.message.thinking === nextProps.message.thinking &&
     prevProps.message.status === nextProps.message.status &&
+    prevProps.message.tool_calls === nextProps.message.tool_calls &&
     prevProps.isStreaming === nextProps.isStreaming &&
     prevProps.conversationId === nextProps.conversationId
   )
