@@ -5,7 +5,7 @@
 interface StreamCallbacks {
   onToken: (token: string) => void;
   onThinkingToken?: (token: string) => void;
-  onDone: (fullContent: string, thinkingContent?: string) => void;
+  onDone: (fullContent: string, thinkingContent?: string, usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }) => void;
   onError: (err: Error) => void;
 }
 
@@ -34,6 +34,7 @@ export function startStream(
   const signal = opts.signal ?? controller.signal;
 
   let fullContent = "";
+  let lastUsage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
 
   (async () => {
     try {
@@ -89,13 +90,18 @@ export function startStream(
 
           const data = trimmed.slice(6);
           if (data === "[DONE]") {
-            callbacks.onDone(fullContent, fullThinking || undefined);
+            callbacks.onDone(fullContent, fullThinking || undefined, lastUsage);
             return;
           }
 
           try {
             const chunk = JSON.parse(data);
             const delta = chunk.choices?.[0]?.delta;
+
+            // Capture usage if present (sent in final chunk)
+            if (chunk.usage) {
+              lastUsage = chunk.usage;
+            }
 
             // Handle reasoning/thinking content (DeepSeek R1 and similar)
             const reasoningToken = delta?.reasoning_content ?? "";
@@ -133,7 +139,7 @@ export function startStream(
       }
 
       // Stream ended without [DONE] (some providers omit it)
-      callbacks.onDone(fullContent, fullThinking || undefined);
+      callbacks.onDone(fullContent, fullThinking || undefined, lastUsage);
     } catch (err: any) {
       if (err.name === "AbortError") return; // cancelled, not an error
       callbacks.onError(err);

@@ -739,6 +739,27 @@ export function ChatMessageInner({
                 }}
               />
             )}
+
+            {/* Token usage indicator */}
+            {message.usage && !isStreaming && (
+              <View style={{ flexDirection: 'row', marginTop: 4, gap: 8 }}>
+                {message.usage.prompt_tokens !== undefined && (
+                  <Text style={{ fontSize: 10, color: theme.textSecondary, opacity: 0.5 }}>
+                    ↑{message.usage.prompt_tokens}
+                  </Text>
+                )}
+                {message.usage.completion_tokens !== undefined && (
+                  <Text style={{ fontSize: 10, color: theme.textSecondary, opacity: 0.5 }}>
+                    ↓{message.usage.completion_tokens}
+                  </Text>
+                )}
+                {message.usage.total_tokens !== undefined && (
+                  <Text style={{ fontSize: 10, color: theme.textSecondary, opacity: 0.5 }}>
+                    Σ{message.usage.total_tokens}
+                  </Text>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Status indicator for user messages */}

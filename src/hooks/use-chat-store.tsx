@@ -32,6 +32,7 @@ export interface Message {
   replyTo?: ReplyTo
   thinking?: string
   images?: string[]  // base64 image data URIs for multimodal
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
 }
 
 export interface Conversation {
@@ -64,6 +65,10 @@ type Action =
   | { type: 'REGENERATE_MESSAGE'; payload: { conversationId: string; messageId: string } }
 
 function generateId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().slice(0, 8)
+  }
+  // Fallback for environments without crypto.randomUUID
   return Math.random().toString(36).substring(2, 10)
 }
 
@@ -177,7 +182,7 @@ interface ChatContextValue {
   createChat: (title: string, modelName?: string) => string
   deleteChat: (id: string) => void
   deleteMessage: (conversationId: string, messageId: string) => void
-  sendMessage: (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[]) => void
+  sendMessage: (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[], temperature?: number, maxTokens?: number) => void
   editMessage: (conversationId: string, messageId: string, newContent: string) => void
   retryMessage: (conversationId: string, messageId: string) => void
   regenerateLastAssistant: (conversationId: string) => void
@@ -252,7 +257,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // ─── Shared streaming logic (avoids stale closure issues) ─────────────────
 
   const startStreamFromMessages = useCallback(
-    (conversationId: string, modelName: string, apiMessages: { role: string; content: string | null }[]) => {
+    (conversationId: string, modelName: string, apiMessages: { role: string; content: string | null | { type: string; text?: string; image_url?: { url: string } }[] }[], temperature?: number, maxTokens?: number) => {
       streamingContentRef.current = ''
       streamingThinkingRef.current = ''
       setStreaming({ content: '', conversationId, thinking: '' })
@@ -266,7 +271,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           model: modelName,
           messages: apiMessages,
           signal: abort.signal,
-          temperature: 0.7,
+          temperature: temperature ?? 0.7,
+          max_tokens: maxTokens,
         },
         {
           onToken: (token) => {
@@ -277,7 +283,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             streamingThinkingRef.current += token
             scheduleFlush()
           },
-          onDone: (fullContent, thinkingContent) => {
+          onDone: (fullContent, thinkingContent, usage) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current)
               rafIdRef.current = null
@@ -289,6 +295,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               timestamp: Date.now(),
               status: 'delivered',
               thinking: thinkingContent,
+              usage,
             }
             dispatch({
               type: 'ADD_MESSAGE',
@@ -323,7 +330,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   )
 
   const sendMessage = useCallback(
-    (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[]) => {
+    (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[], temperature?: number, maxTokens?: number) => {
       const conv = state.conversations.find((c) => c.id === conversationId)
       if (!conv) return
 
@@ -369,7 +376,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       ]
 
       // --- kick off streaming via shared helper ---
-      startStreamFromMessages(conversationId, conv.modelName, apiMessages)
+      startStreamFromMessages(conversationId, conv.modelName, apiMessages, temperature, maxTokens)
 
       // Update message status to 'sent' immediately (optimistic)
       setTimeout(() => {

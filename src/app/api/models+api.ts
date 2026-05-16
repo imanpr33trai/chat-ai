@@ -4,7 +4,7 @@ import { z } from 'zod'
 const PROXY_URL = process.env.EXPO_PUBLIC_API_URL
 
 // --- Debug helper ---
-const DEBUG = process.env.DEBUG_NVIDIA === 'true'
+const DEBUG = typeof process !== 'undefined' && process.env.DEBUG_NVIDIA === 'true'
 function debug(label: string, data: unknown) {
   if (DEBUG) {
     console.error(`[NVIDIA DEBUG ${label}]`, JSON.stringify(data, null, 2))
@@ -121,6 +121,7 @@ export async function GET(request: Request) {
     headers: {
       'Content-Type': 'application/json',
     },
+    signal: AbortSignal.timeout(30_000),
   })
 
   if (!res.ok) {
