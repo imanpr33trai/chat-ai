@@ -3,15 +3,10 @@ name: Preview APK
 on:
   pull_request:
     branches:
-      - long_chat
-      - improvements-v2
-      - image-generation
-      - master
+      - preview
   push:
     branches:
-      - long_chat
-      - improvements-v2
-      - image-generation
+      - preview
   workflow_dispatch:
 
 concurrency:
