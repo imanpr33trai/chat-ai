@@ -4,9 +4,7 @@ on:
   pull_request:
     branches:
       - Singh
-  push:
-    branches:
-      - preview
+
   workflow_dispatch:
 
 concurrency:
