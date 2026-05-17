@@ -19,7 +19,7 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },"environment": "production","bun": "1.*"
+      },"environment": "production"
     },
     "production": {"environment": "production",
       "android": {
