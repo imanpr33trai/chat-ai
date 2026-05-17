@@ -19,9 +19,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      }
+      },"environment": "production","bun": "1.*"
     },
-    "production": {
+    "production": {"environment": "production",
       "android": {
         "buildType": "apk",
         "autoIncrement": "versionCode"

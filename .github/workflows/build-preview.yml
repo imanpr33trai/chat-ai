@@ -40,7 +40,7 @@ jobs:
         run: |
           BUILD_ID=$(npx eas-cli build \
             --platform android \
-            --profile production \
+            --profile preview \
             --non-interactive \
             --json \
             | jq -r '.[0].id')
