@@ -1,0 +1,79 @@
+name: Preview APK
+
+on:
+  pull_request:
+    branches:
+      - Singh
+  push:
+    branches:
+      - preview
+  workflow_dispatch:
+
+concurrency:
+  group: preview-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Setup Expo & EAS
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Start EAS Build (preview)
+        id: build
+        run: |
+          BUILD_ID=$(npx eas-cli build \
+            --platform android \
+            --profile preview \
+            --non-interactive \
+            --json \
+            | jq -r '.[0].id')
+          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+
+      - name: Wait for build
+        run: |
+          sleep 30
+          while true; do
+            STATUS=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -r '.status')
+            if [ "$STATUS" = "FINISHED" ]; then
+              echo "Build completed"
+              break
+            elif [ "$STATUS" = "ERRORED" ]; then
+              echo "Build failed"
+              exit 1
+            fi
+            echo "Status: $STATUS. Waiting..."
+            sleep 60
+          done
+
+      - name: Download APK
+        id: download
+        run: |
+          APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
+            | jq -r '.artifacts.applicationArchiveUrl')
+          APK_FILENAME="app-preview-${{ github.sha }}.apk"
+          curl -fL -o "$APK_FILENAME" "$APK_URL"
+          echo "apk_path=$APK_FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-apk
+          path: ${{ steps.download.outputs.apk_path }}
+          retention-days: 7
