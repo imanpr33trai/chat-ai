@@ -3,7 +3,7 @@ name: Preview APK
 on:
   pull_request:
     branches:
-      - preview
+      - Singh
 
   workflow_dispatch:
 
