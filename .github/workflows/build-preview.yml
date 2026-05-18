@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       eas_update_id:
-        description: 'EAS Update ID to use (optional, will create new if not provided)'
+        description: "EAS Update ID to use (optional, will create new if not provided)"
         required: false
 
 concurrency:
