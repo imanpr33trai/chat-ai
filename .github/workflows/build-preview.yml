@@ -7,6 +7,10 @@ on:
     branches:
       - Singh
   workflow_dispatch:
+    inputs:
+      eas_update_id:
+        description: 'EAS Update ID to use (optional, will create new if not provided)'
+        required: false
 
 concurrency:
   group: preview-${{ github.ref }}
@@ -52,11 +56,13 @@ jobs:
       - name: Start EAS Build
         id: build
         run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
           BUILD_ID=$(npx eas-cli build \
             --platform android \
             --profile preview \
             --non-interactive \
             --json \
+            --message "${COMMIT_MSG:0:100}" \
             | jq -r '.[0].id')
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
@@ -83,20 +89,18 @@ jobs:
             exit 1
           fi
 
-      - name: Download APK
-        id: download
+      - name: Get APK info
+        id: apk_info
         run: |
           APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
             | jq -r '.artifacts.applicationArchiveUrl')
-          APK_FILENAME="app-preview-${{ github.sha }}.apk"
-          curl -fL -o "$APK_FILENAME" "$APK_URL"
-          echo "apk_path=$APK_FILENAME" >> $GITHUB_OUTPUT
+          echo "apk_url=$APK_URL" >> $GITHUB_OUTPUT
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: preview-apk-${{ github.sha }}
-          path: ${{ steps.download.outputs.apk_path }}
+          path: ${{ steps.build.outputs.build_id }}/app.apk
           retention-days: 7
 
       - name: Comment PR with APK link
@@ -106,11 +110,12 @@ jobs:
           script: |
             const buildId = '${{ steps.build.outputs.build_id }}';
             const sha = '${{ github.sha }}';
+            const apkUrl = '${{ steps.apk_info.outputs.apk_url }}';
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### Preview Build\n**Build ID:** \`${buildId}\`\n**Commit:** \`${sha}\`\n\nDownload the APK from the Actions artifacts tab above, or check the build status [here](https://expo.dev/builds/${buildId}).`
+              body: `### Preview Build\n**Build ID:** \`${buildId}\`\n**Commit:** \`${sha}\`\n\n**APK URL:** ${apkUrl}\n\nDownload the APK and check build status at https://expo.dev/builds/${buildId}`
             })
 
       - name: Notify on failure

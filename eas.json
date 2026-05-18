@@ -19,9 +19,15 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },"environment": "production"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-gateway-dun-two.vercel.app"
+      }
     },
-    "production": {"environment": "production",
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-gateway-dun-two.vercel.app"
+      },
       "android": {
         "buildType": "apk",
         "autoIncrement": "versionCode"
