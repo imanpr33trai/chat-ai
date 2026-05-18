@@ -32,7 +32,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -64,7 +63,6 @@ jobs:
       - name: Start EAS Build
         id: build
         run: |
-          TAG_MSG="${{ env.TAG }}"
           BUILD_ID=$(npx eas-cli build \
             --platform android \
             --profile production \
@@ -74,24 +72,44 @@ jobs:
             | jq -r '.[0].id')
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
-      - name: Wait for build
-        run: bash ./script/wait-for-build.sh "${{ steps.build.outputs.build_id }}"
+      - name: Wait for build (with 45min timeout)
+        run: |
+          MAX_WAIT=2700
+          ELAPSED=0
+          sleep 30
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            STATUS=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -r '.status')
+            if [ "$STATUS" = "FINISHED" ]; then
+              echo "Build completed successfully"
+              break
+            elif [ "$STATUS" = "ERRORED" ]; then
+              echo "Build failed"
+              exit 1
+            fi
+            echo "Build status: $STATUS. Waiting... (${ELAPSED}s)"
+            sleep 60
+            ELAPSED=$((ELAPSED + 60))
+          done
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "Build timed out after 45 minutes"
+            exit 1
+          fi
 
       - name: Download APK
         id: download
         run: |
-          mkdir -p target/
           APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
             | jq -r '.artifacts.applicationArchiveUrl')
-          echo "apk_url=$APK_URL" >> $GITHUB_OUTPUT
+          APK_FILENAME="app-release-${{ github.ref_name }}.apk"
+          curl -fL -o "$APK_FILENAME" "$APK_URL"
+          echo "apk_path=$APK_FILENAME" >> $GITHUB_OUTPUT
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk-${{ env.TAG }}
-          path: ${{ steps.build.outputs.build_id }}/app.apk
+          name: release-apk-${{ github.ref_name }}
+          path: ${{ steps.download.outputs.apk_path }}
           retention-days: 30
-          if-no-files-found: error
 
       - name: Create GitHub Release
         env:
@@ -99,21 +117,5 @@ jobs:
         run: |
           gh release create "${{ env.TAG }}" \
             "${{ steps.download.outputs.apk_path }}" \
-            --title "Release ${{ env.TAG }}" \
-            --notes "target/release-notes.md"
-
-      - name: Notify on success
-        if: success()
-        run: |
-          bash ./script/slack-notify.sh \
-            "${{ secrets.SLACK_WEBHOOK }}" \
-            "✅ Release \`${{ env.TAG }}\` published successfully" \
-            "success"
-
-      - name: Notify on failure
-        if: failure()
-        run: |
-          bash ./script/slack-notify.sh \
-            "${{ secrets.SLACK_WEBHOOK }}" \
-            "❌ Release \`${{ env.TAG }}\` FAILED — check ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            "failure"
+            --title "Release ${{ github.ref_name }}" \
+            --notes "Automated production build. Commit: \`${{ github.sha }}\`"

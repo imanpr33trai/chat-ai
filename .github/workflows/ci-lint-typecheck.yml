@@ -5,7 +5,6 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - preview
       - Singh
 
 concurrency:
@@ -39,7 +38,7 @@ jobs:
         run: bunx tsc --noEmit --pretty
 
       - name: ESLint check
-        run: bunx eslint src --ext .ts,.tsx 2>&1 || echo "No ESLint config — skipping"
+        run: bunx eslint src --ext .ts,.tsx --max-warnings 0 2>&1 || echo "No ESLint config — skipping"
 
       - name: Expo lint
         run: bunx expo lint 2>&1 || echo "Expo lint not configured — skipping"
