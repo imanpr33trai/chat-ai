@@ -1,89 +1,42 @@
-name: Build & Release APK
+name: Release
 
 on:
   push:
-    tags:
-      - "v*" # Version tags like v1.0.0
-  workflow_dispatch: # Manual trigger for testing
+    tags: ['v*']
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Bun (or Node)
-        uses: oven-sh/setup-bun@v1 # If you use bun; otherwise setup-node
+      - uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      - name: Install dependencies
-        run: bun install # or npm ci
+      - run: bun install
 
-      - name: Setup Expo & EAS
-        uses: expo/expo-github-action@v8
+      - uses: expo/expo-github-action@v8
         with:
           expo-version: latest
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Start EAS Build
-        id: build
-        run: |
-          # Trigger the build and capture the build ID
-          BUILD_ID=$(npx eas-cli build \
-            --platform android \
-            --profile production \
-            --non-interactive \
-            --json \
-            | jq -r '.[0].id')
+      - name: Build
+        run: npx eas-cli build --platform android --profile production --non-interactive
 
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-
-      - name: Wait for build to finish
+      - name: Download
         run: |
-          # Wait until the build completes (status: FINISHED or ERRORED)
-          npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -e '.status == "FINISHED"' > /dev/null
           sleep 30
-          while true; do
-            STATUS=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -r '.status')
-            if [ "$STATUS" = "FINISHED" ]; then
-              echo "Build completed successfully"
-              break
-            elif [ "$STATUS" = "ERRORED" ]; then
-              echo "Build failed"
-              exit 1
-            fi
-            echo "Build status: $STATUS. Waiting..."
-            sleep 60
-          done
+          npx eas-cli build:list --limit 1 --status finished --json | \
+            jq -r '.[0].artifacts.applicationArchiveUrl' | \
+            xargs -I {} curl -fL -o app-release.apk {}
 
-      - name: Download APK
-        id: download
-        run: |
-          # Get the download URL
-          APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
-            | jq -r '.artifacts.applicationArchiveUrl')
-
-          # Download with a clean filename
-          APK_FILENAME="app-release-${{ github.ref_name }}.apk"
-          curl -fL -o "$APK_FILENAME" "$APK_URL"
-
-          echo "apk_path=$APK_FILENAME" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "${{ github.ref_name }}" \
-            "${{ steps.download.outputs.apk_path }}" \
-            --title "Release ${{ github.ref_name }}" \
-            --notes "Automated production build for ${{ github.ref_name }}"
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: app-release.apk
