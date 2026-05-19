@@ -1,11 +1,9 @@
-name: Preview APK
+name: Build Preview APK
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - preview
+
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +15,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  build-preview:
+  lint-and-build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -28,8 +26,19 @@ jobs:
         with:
           bun-version: latest
 
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
       - name: Install dependencies
         run: bun install
+
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty
 
       - name: Setup Expo & EAS
         uses: expo/expo-github-action@v8
@@ -38,7 +47,7 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Start EAS Build (preview)
+      - name: Start EAS Build
         id: build
         run: |
           BUILD_ID=$(npx eas-cli build \
@@ -46,13 +55,17 @@ jobs:
             --profile preview \
             --non-interactive \
             --json \
+            --message "${COMMIT_MSG:0:100}" \
             | jq -r '.[0].id')
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
-      - name: Wait for build
+
+      - name: Wait for build (with 45min timeout)
         run: |
+          MAX_WAIT=2700
+          ELAPSED=0
           sleep 30
-          while true; do
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
             STATUS=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -r '.status')
             if [ "$STATUS" = "FINISHED" ]; then
               echo "Build completed"
@@ -61,22 +74,25 @@ jobs:
               echo "Build failed"
               exit 1
             fi
-            echo "Status: $STATUS. Waiting..."
+            echo "Status: $STATUS. Waiting... (${ELAPSED}s)"
             sleep 60
+            ELAPSED=$((ELAPSED + 60))
           done
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "Build timed out after 45 minutes"
+            exit 1
+          fi
 
       - name: Download APK
         id: download
         run: |
           APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
             | jq -r '.artifacts.applicationArchiveUrl')
-          APK_FILENAME="app-preview-${{ github.sha }}.apk"
-          curl -fL -o "$APK_FILENAME" "$APK_URL"
-          echo "apk_path=$APK_FILENAME" >> $GITHUB_OUTPUT
+          echo "apk_url=$APK_URL" >> $GITHUB_OUTPUT
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: preview-apk
+          name: preview-apk-${{ github.sha }}
           path: ${{ steps.download.outputs.apk_path }}
           retention-days: 7
