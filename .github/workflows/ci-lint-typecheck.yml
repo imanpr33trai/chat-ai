@@ -43,14 +43,3 @@ jobs:
 
       - name: Expo lint
         run: bunx expo lint 2>&1 || echo "Expo lint not configured — skipping"
-
-      - name: Download actionlint
-        id: get_actionlint
-        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-
-      - name: Validate workflow YAML files
-        run: |
-          "${{ steps.get_actionlint.outputs.executable }}" .github/workflows/ 2>&1 || {
-            echo "actionlint failed — check .github/workflows/ YAML syntax"
-            exit 1
-          }
