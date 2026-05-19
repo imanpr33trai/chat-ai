@@ -1,16 +1,13 @@
-name: Preview APK
+name: Build Preview APK
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - Singh
+      - master
+      - main
   workflow_dispatch:
-    inputs:
-      eas_update_id:
-        description: "EAS Update ID to use (optional, will create new if not provided)"
-        required: false
 
 concurrency:
   group: preview-${{ github.ref }}
@@ -21,7 +18,16 @@ permissions:
   pull-requests: write
 
 jobs:
-  lint-and-build:
+  # Run CI checks first — build only starts if CI passes
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci-lint-typecheck.yml
+    with:
+      ref: ${{ github.sha }}
+
+  # Build only after CI succeeds
+  build:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -43,9 +49,6 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: TypeScript check
-        run: bunx tsc --noEmit --pretty
-
       - name: Setup Expo & EAS
         uses: expo/expo-github-action@v8
         with:
@@ -56,7 +59,7 @@ jobs:
       - name: Start EAS Build
         id: build
         run: |
-          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          COMMIT_MSG="${{ github.event.head_commit?.message || github.event.pull_request?.title || 'Preview build' }}"
           BUILD_ID=$(npx eas-cli build \
             --platform android \
             --profile preview \
@@ -66,31 +69,11 @@ jobs:
             | jq -r '.[0].id')
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
-      - name: Wait for build (with 45min timeout)
-        run: |
-          MAX_WAIT=2700
-          ELAPSED=0
-          sleep 30
-          while [ $ELAPSED -lt $MAX_WAIT ]; do
-            STATUS=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -r '.status')
-            if [ "$STATUS" = "FINISHED" ]; then
-              echo "Build completed"
-              break
-            elif [ "$STATUS" = "ERRORED" ]; then
-              echo "Build failed"
-              exit 1
-            fi
-            echo "Status: $STATUS. Waiting... (${ELAPSED}s)"
-            sleep 60
-            ELAPSED=$((ELAPSED + 60))
-          done
-          if [ $ELAPSED -ge $MAX_WAIT ]; then
-            echo "Build timed out after 45 minutes"
-            exit 1
-          fi
+      - name: Wait for build
+        run: bash ./script/wait-for-build.sh "${{ steps.build.outputs.build_id }}"
 
-      - name: Get APK info
-        id: apk_info
+      - name: Download APK
+        id: download
         run: |
           APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
             | jq -r '.artifacts.applicationArchiveUrl')
@@ -102,23 +85,40 @@ jobs:
           name: preview-apk-${{ github.sha }}
           path: ${{ steps.build.outputs.build_id }}/app.apk
           retention-days: 7
+          if-no-files-found: error
+
+      - name: Notify on success
+        if: success() && github.event_name == 'pull_request'
+        run: |
+          bash ./script/slack-notify.sh \
+            "${{ secrets.SLACK_WEBHOOK }}" \
+            "Preview build succeeded for \`${{ github.sha }}\` on ${{ github.ref_name }}" \
+            "success"
 
       - name: Comment PR with APK link
-        if: github.event_name == 'pull_request'
+        if: success() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const buildId = '${{ steps.build.outputs.build_id }}';
             const sha = '${{ github.sha }}';
-            const apkUrl = '${{ steps.apk_info.outputs.apk_url }}';
+            const apkUrl = '${{ steps.download.outputs.apk_url }}';
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### Preview Build\n**Build ID:** \`${buildId}\`\n**Commit:** \`${sha}\`\n\n**APK URL:** ${apkUrl}\n\nDownload the APK and check build status at https://expo.dev/builds/${buildId}`
+              body: `### Preview Build ✅\n**Build ID:** \`${buildId}\`\n**Commit:** \`${sha}\`\n\n**APK:** ${apkUrl}\n\nCheck the [Actions log](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) or [EAS Dashboard](https://expo.dev/builds/${buildId}).`
             })
 
       - name: Notify on failure
+        if: failure()
+        run: |
+          bash ./script/slack-notify.sh \
+            "${{ secrets.SLACK_WEBHOOK }}" \
+            "Preview build FAILED for \`${{ github.sha }}\` — check ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            "failure"
+
+      - name: Comment PR on failure
         if: failure() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
@@ -127,5 +127,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### Preview Build Failed\nCommit: \`${{ github.sha }}\`\nCheck the [Actions log](${{ github.run_url }}) for details.`
+              body: `### Preview Build ❌\nBuild failed — check the [Actions log](${{ github.run_url }}) for details.`
             })
