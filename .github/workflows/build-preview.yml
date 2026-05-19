@@ -53,7 +53,7 @@ jobs:
         run: bun install
 
       - name: Run expo doctor
-        run: npx expo doctor --fix 2>&1 || npx expo doctor
+        run: bunx expo-doctor@latest 2>&1 || bunx expo-doctor@latest
 
       - name: Expo Prebuild
         run: npx expo prebuild --platform android --clean
