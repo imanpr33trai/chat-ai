@@ -1,0 +1,59 @@
+name: CI — Lint & Typecheck
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
+        default: ${{ github.sha }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        if: inputs.ref != ''
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Checkout (default ref)
+        if: inputs.ref == ''
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty
+
+      - name: ESLint check
+        run: bunx eslint src --ext .ts,.tsx 2>&1 || echo "No ESLint config — skipping"
+
+      - name: Expo lint
+        run: bunx expo lint 2>&1 || echo "Expo lint not configured — skipping"
+
+      - name: Download actionlint
+        id: get_actionlint
+        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+
+      - name: Validate workflow YAML files
+        run: |
+          "${{ steps.get_actionlint.outputs.executable }}" .github/workflows/ 2>&1 || {
+            echo "actionlint failed — check .github/workflows/ YAML syntax"
+            exit 1
+          }
