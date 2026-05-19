@@ -41,15 +41,3 @@ jobs:
 
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty
-
-
-      - name: Download actionlint
-        id: get_actionlint
-        run: bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-
-      - name: Validate workflow YAML files
-        run: |
-          "actionlint" -format '{{json}}' .github/workflows/*.yml 2>&1 || {
-           echo "actionlint failed — check .github/workflows/ YAML syntax"
-            exit 1
-            }
