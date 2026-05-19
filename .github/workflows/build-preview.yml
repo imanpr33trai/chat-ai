@@ -3,9 +3,7 @@ name: Build Preview APK
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches:
-      - preview
+
   workflow_dispatch:
 
 concurrency:
