@@ -55,7 +55,7 @@ jobs:
             --profile preview \
             --non-interactive \
             --json \
-            --message "${COMMIT_MSG:0:100}" \
+
             | jq -r '.[0].id')
           echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
 
