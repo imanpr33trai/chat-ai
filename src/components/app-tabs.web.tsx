@@ -1,10 +1,11 @@
+import type {
+  TabListProps,
+  TabTriggerSlotProps} from "expo-router/ui";
 import {
   TabList,
-  TabListProps,
   Tabs,
   TabSlot,
-  TabTrigger,
-  TabTriggerSlotProps,
+  TabTrigger
 } from "expo-router/ui";
 import React from "react";
 import { Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";

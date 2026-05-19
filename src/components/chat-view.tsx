@@ -2,6 +2,7 @@ import * as Clipboard from "expo-clipboard";
 import { Stack } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Modal,
@@ -11,7 +12,6 @@ import {
   Text,
   TextInput,
   View,
-  ActivityIndicator,
 } from "react-native";
 
 import { ChatInput } from "@/components/chat-input";
@@ -19,8 +19,8 @@ import { ChatMessage, ThinkingBubble } from "@/components/chat-message";
 import { TypingIndicator } from "@/components/typing-indicator";
 import type { Reaction, ReplyTo } from "@/hooks/use-chat-store";
 import { useChat } from "@/hooks/use-chat-store";
-import { useTheme } from "@/hooks/use-theme";
 import { useModels } from "@/hooks/use-models";
+import { useTheme } from "@/hooks/use-theme";
 
 // ─── Edit Modal ─────────────────────────────────────────────────
 
@@ -126,12 +126,12 @@ function SearchModal({
   visible: boolean;
   onClose: () => void;
   onSearch: (query: string) => void;
-  messages: Array<{ id: string; content: string; role: string }>;
+  messages: { id: string; content: string; role: string }[];
 }) {
   const theme = useTheme();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<
-    Array<{ id: string; content: string; role: string; index: number }>
+    { id: string; content: string; role: string; index: number }[]
   >([]);
 
   useEffect(() => {
@@ -267,7 +267,7 @@ function ModelPickerSheet({
   for (const m of filtered) {
     const key = m.provider
     if (!groups[key]) groups[key] = []
-    groups[key]!.push(m)
+    groups[key].push(m)
   }
 
   return (
@@ -508,8 +508,8 @@ export function ChatView({ id }: { id: string }) {
     null,
   );
   const [showSearch, setShowSearch] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [, setShowSearchResults] = useState(false);
+  const [, setSearchQuery] = useState('');
   const [showModelSheet, setShowModelSheet] = useState(false);
   // Message search within conversation
   const [msgSearchQuery, setMsgSearchQuery] = useState('');
@@ -533,12 +533,12 @@ export function ChatView({ id }: { id: string }) {
   const groupedMessages = useCallback(() => {
     if (!conversation) return [];
 
-    const groups: Array<{
+    const groups: {
       type: "date" | "message";
       date?: Date;
       message?: (typeof conversation.messages)[0];
       index?: number;
-    }> = [];
+    }[] = [];
 
     let lastDate: string | null = null;
 
@@ -615,8 +615,8 @@ export function ChatView({ id }: { id: string }) {
     setReplyTo(undefined);
   };
 
-  const handleCopy = (content: string) => {
-    Clipboard.setStringAsync(content);
+  const handleCopy =async (content: string) => {
+    await Clipboard.setStringAsync(content);
   };
 
   const handleStop = () => {

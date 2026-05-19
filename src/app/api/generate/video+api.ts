@@ -49,11 +49,11 @@ function validateGenerateVideo(body: unknown): { ok: true; data: GenerateVideoRe
   return {
     ok: true,
       data: {
-        image: b.image as string,
-        seed: b.seed as number | undefined,
-        cfg_scale: b.cfg_scale as number | undefined,
-        motion_bucket_id: b.motion_bucket_id as number | undefined,
-        frames_per_second: b.frames_per_second as number | undefined,
+        image: b.image,
+        seed: b.seed,
+        cfg_scale: b.cfg_scale,
+        motion_bucket_id: b.motion_bucket_id,
+        frames_per_second: b.frames_per_second,
       },
   }
 }

@@ -657,7 +657,7 @@ export function ChatMessageInner({
   onStar,
   onReaction,
   onSearch,
-  conversationId
+
 }: ChatMessageProps) {
   const theme = useTheme()
   const isUser = message.role === 'user'

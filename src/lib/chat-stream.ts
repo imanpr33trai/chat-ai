@@ -201,7 +201,7 @@ function buildToolCalls(
 ): ToolCall[] | undefined {
   const indices = Object.keys(acc)
     .map(Number)
-    .sort((a, b) => a - b);
+    .toSorted((a, b) => a - b);
   if (indices.length === 0) return undefined;
 
   const calls: ToolCall[] = [];

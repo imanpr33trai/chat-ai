@@ -244,7 +244,7 @@ export default function ChatsScreen() {
   const handleNewChat = (modelId: string, modelName: string) => {
     const title = `Chat with ${modelName}`
     const id = createChat(title, modelId)
-    router.push(`/chat/${id}` as any)
+    router.push(`/chat/${id}`)
   }
 
   const handleRenameStart = (convId: string, currentTitle: string) => {
@@ -356,7 +356,7 @@ export default function ChatsScreen() {
                 timestamp={conv.updatedAt}
                 modelName={conv.modelName}
                 onPress={() => {
-                  router.push(`/chat/${conv.id}` as any)
+                  router.push(`/chat/${conv.id}`)
                 }}
                 onDelete={() => {
                   deleteChat(conv.id)

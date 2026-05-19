@@ -1,13 +1,13 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { ScrollView, View, Text, Pressable, ActivityIndicator, TextInput, Alert } from 'react-native';
 import { Stack } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import { useChat } from '@/hooks/use-chat-store';
-import { useTheme } from '@/hooks/use-theme';
 import { useModels } from '@/hooks/use-models';
-import { writeModelCache, clearModelCache, mergeIntoCache, readModelCache } from '@/lib/model-cache';
-import { getApiKey, setApiKey, clearApiKey, loadApiKey } from '@/lib/api-key';
+import { useTheme } from '@/hooks/use-theme';
+import { clearApiKey, loadApiKey, setApiKey } from '@/lib/api-key';
+import { clearModelCache, mergeIntoCache, readModelCache, writeModelCache } from '@/lib/model-cache';
 
 function SettingsRow({
   title,
