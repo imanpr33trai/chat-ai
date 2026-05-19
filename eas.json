@@ -25,15 +25,15 @@
       }
     },
     "production": {
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-gateway-dun-two.vercel.app"
-      },
       "android": {
         "buildType": "apk",
         "autoIncrement": "versionCode"
       },
       "ios": {
         "autoIncrement": "buildNumber"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-gateway-dun-two.vercel.app"
       }
     }
   },

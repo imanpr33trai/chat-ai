@@ -1,10 +1,19 @@
 import React, { memo, useMemo, useState } from 'react'
-import { Image, Platform, Pressable, Text, View } from 'react-native'
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated'
+import {
+  Image,
+  Platform,
+  Pressable,
+  Text,
+  View
+} from 'react-native'
+import Animated, {
+  FadeIn,
+  FadeInDown,
+} from 'react-native-reanimated'
 
-import { MessageContextMenu, ReactionPicker } from './message-context-menu'
 import type { Message, MessageStatus, Reaction } from '@/hooks/use-chat-store'
 import { useTheme } from '@/hooks/use-theme'
+import { MessageContextMenu, ReactionPicker } from './message-context-menu'
 
 // ─── Status indicator ────────────────────────────────────────────
 
@@ -823,7 +832,8 @@ export function ChatMessageInner({
                     style={{
                       width: 120,
                       height: 120,
-                      borderRadius: 12
+                      borderRadius: 12,
+
                     }}
                     resizeMode="cover"
                   />
