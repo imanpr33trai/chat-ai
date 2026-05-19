@@ -49,7 +49,7 @@ jobs:
 
       - name: Validate workflow YAML files
         run: |
-          "${{ steps.get_actionlint.outputs.executable }}" .github/workflows/ 2>&1 || {
-            echo "actionlint failed — check .github/workflows/ YAML syntax"
+          "actionlint" -format '{{json}}' .github/workflows/*.yml 2>&1 || {
+           echo "actionlint failed — check .github/workflows/ YAML syntax"
             exit 1
-          }
+            }
