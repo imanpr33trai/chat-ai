@@ -121,5 +121,6 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
+
               body: `### Preview Build ❌\nBuild failed for \`${{ github.sha }}\` — check the [Actions log](${{ github.run_url }}).`
             })

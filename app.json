@@ -29,7 +29,7 @@
       [
         "expo-router",
         {
-          "unstable_useServerRendering": true
+          "unstable_useClientRouting": true
         }
       ],
       [
@@ -51,7 +51,7 @@
     },
     "extra": {
       "router": {
-        "unstable_useServerRendering": true
+        "unstable_useClientRouting": true
       },
       "eas": {
         "projectId": "3db231b7-032e-4186-b1cf-81a455d98c54"
