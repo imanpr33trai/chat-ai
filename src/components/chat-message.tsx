@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState, useCallback } from 'react'
+import React, { memo, useMemo, useState } from 'react'
 import {
   Image,
   Platform,
@@ -697,7 +697,7 @@ export function ChatMessageInner({
                       width: 120,
                       height: 120,
                       borderRadius: 12,
-                      borderCurve: 'continuous',
+
                     }}
                     resizeMode="cover"
                   />
