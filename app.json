@@ -52,7 +52,7 @@
     },
     "extra": {
       "router": {
-        "unstable_useClientRouting": true
+        "unstable_useServerRendering": true
       },
       "eas": {
         "projectId": "3db231b7-032e-4186-b1cf-81a455d98c54"
