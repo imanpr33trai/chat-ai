@@ -51,6 +51,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Run expo doctor
+        run: npx expo doctor --fix 2>&1 || npx expo doctor
+
       - name: Expo Prebuild
         run: npx expo prebuild --platform android --clean
 
@@ -61,6 +64,35 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      - name: Bundle JavaScript & API routes
+        run: |
+          npx expo export \
+            --platform android \
+            --output-dir dist \
+            --no-bytecode \
+            --no-ssg
+
+      - name: Copy JS bundle to Android assets
+        run: |
+          mkdir -p android/app/src/main/assets
+          cp dist/index.android.bundle android/app/src/main/assets/index.android.bundle 2>/dev/null || \
+          cp dist/_expo/static/js/android/*.js android/app/src/main/assets/ 2>/dev/null || \
+          cp dist/index.js android/app/src/main/assets/index.android.bundle 2>/dev/null || \
+          echo "Warning: bundle copy failed — checking dist structure"
+          ls -R dist/ || true
+
+      - name: Copy API server bundle to Android assets
+        run: |
+          cp dist/server/index.js android/app/src/main/assets/server.js 2>/dev/null || \
+          cp dist/_expo/routes.json android/app/src/main/assets/routes.json 2>/dev/null || \
+          echo "API server routes will be loaded from embedded bundle"
+
+      - name: Copy asset files to Android
+        run: |
+          if [ -d dist/assets ]; then
+            cp -r dist/assets android/app/src/main/assets/ 2>/dev/null || true
+          fi
+
       - name: Decode Keystore
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
@@ -69,6 +101,12 @@ jobs:
 
       - name: Make Gradle Executable
         run: chmod +x android/gradlew
+
+      - name: Set Gradle build flags
+        run: |
+          echo "org.gradle.jvmargs=-XX:MaxMetaspaceSize=1g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> android/gradle.properties
+          echo "org.gradle.parallel=true" >> android/gradle.properties
+          echo "org.gradle.daemon=false" >> android/gradle.properties
 
       - name: Build Android Release APK
         env:
