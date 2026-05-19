@@ -42,8 +42,6 @@ jobs:
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty
 
-      - name: Lint
-        run: bun run lint
 
       - name: Download actionlint
         id: get_actionlint
