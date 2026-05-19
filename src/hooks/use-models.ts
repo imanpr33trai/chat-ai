@@ -1,97 +1,115 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { readModelCache } from '@/lib/model-cache'
 
 export type RemoteModel = {
   id: string
   name: string
   provider: string
   description: string
+  available: boolean | null
 }
 
 export function useModels() {
   const [models, setModels] = useState<RemoteModel[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
-    async function fetchModels() {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
       try {
         const res = await fetch('/api/models')
         const data = await res.json()
-        
+
         if (data.error) {
+          if (cancelled) return
           setError(data.error)
           setLoading(false)
           return
         }
 
-        // Format all models from the API
-        const formattedModels: RemoteModel[] = data.data.map((model: any) => {
-          const id = model.id
-          // Extract a friendly name from the model ID
-          const parts = id.split('/')
-          const shortName = parts[parts.length - 1]
-            .replace(/-/g, ' ')
-            .replace(/_/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim()
+        const rawModels = (data.data ?? []) as { id: string }[]
 
-          // Determine provider from ID
-          let provider = 'NVIDIA'
-          if (id.includes('nvidia')) provider = 'NVIDIA'
-          else if (id.includes('meta')) provider = 'Meta'
-          else if (id.includes('mistralai')) provider = 'Mistral'
-          else if (id.includes('google')) provider = 'Google'
-          else if (id.includes('anthropic')) provider = 'Anthropic'
-          else if (id.includes('openai')) provider = 'OpenAI'
-          else if (id.includes('deepseek')) provider = 'DeepSeek'
-          else if (id.includes('microsoft')) provider = 'Microsoft'
-          else if (id.includes('databricks')) provider = 'Databricks'
-          else if (id.includes('aavoid')) provider = 'Aavoid'
-          else if (id.includes('softtek')) provider = 'Softtek'
-          else if (id.includes('mistral')) provider = 'Mistral'
+        // Apply cached availability for previously verified models
+        const cache = readModelCache()
+        const cacheMap = cache?.models ?? {}
 
-          return {
-            id,
-            name: formatModelName(shortName),
-            provider,
-            description: getModelDescription(id),
-          }
-        })
+        const formattedModels: RemoteModel[] = rawModels.map((m) => ({
+          id: m.id,
+          name: formatModelName(extractShortName(m.id)),
+          provider: detectProvider(m.id),
+          description: getModelDescription(m.id),
+          available: cacheMap[m.id] ?? null,
+        }))
 
-        // Deduplicate by model ID (first occurrence wins)
-        const seen = new Map<string, RemoteModel>()
-        for (const model of formattedModels) {
-          if (!seen.has(model.id)) {
-            seen.set(model.id, model)
-          }
+        if (!cancelled) {
+          setModels(formattedModels)
+          setLoading(false)
         }
-        const uniqueModels = Array.from(seen.values())
-
-        setModels(uniqueModels)
-        setLoading(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch models')
-        setLoading(false)
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch models')
+          setLoading(false)
+        }
       }
     }
 
-    fetchModels()
+    load()
   }, [])
 
-  return { models, loading, error }
+  // Available models only (verified available — for selectors)
+  const availableModels = models.filter((m) => m.available === true)
+
+  return {
+    models: availableModels,
+    allModels: models,
+    loading,
+    error,
+  }
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+function extractShortName(id: string): string {
+  const parts = id.split('/')
+  return parts[parts.length - 1]
+    .replace(/-/g, ' ')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function detectProvider(id: string): string {
+  if (id.includes('nvidia')) return 'NVIDIA'
+  if (id.includes('meta')) return 'Meta'
+  if (id.includes('mistralai') || id.includes('mistral')) return 'Mistral'
+  if (id.includes('google')) return 'Google'
+  if (id.includes('anthropic')) return 'Anthropic'
+  if (id.includes('openai')) return 'OpenAI'
+  if (id.includes('deepseek')) return 'DeepSeek'
+  if (id.includes('microsoft')) return 'Microsoft'
+  if (id.includes('databricks')) return 'Databricks'
+  if (id.includes('aavoid')) return 'Aavoid'
+  if (id.includes('softtek')) return 'Softtek'
+  return 'NVIDIA'
 }
 
 function formatModelName(name: string): string {
-  // Capitalize each word
   return name
     .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
 
 function getModelDescription(modelId: string): string {
   const id = modelId.toLowerCase()
-  
   if (id.includes('70b') || id.includes('65b')) return 'High performance, best quality'
   if (id.includes('8b') || id.includes('7b')) return 'Fast, efficient, good for most tasks'
   if (id.includes('12b') || id.includes('13b')) return 'Balanced speed and capability'
@@ -99,9 +117,8 @@ function getModelDescription(modelId: string): string {
   if (id.includes('deepseek-r1') || id.includes('r1')) return 'Strong reasoning with chain-of-thought'
   if (id.includes('chat')) return 'Optimized for conversation'
   if (id.includes('instruct')) return 'Fine-tuned for following instructions'
-  if (id.includes('code')) return 'Specialized for code generation'
-  if (id.includes('vision')) return 'Supports image understanding'
+  if (id.includes('code') || id.includes('coder')) return 'Specialized for code generation'
+  if (id.includes('vision') || id.includes('vl') || id.includes('visual')) return 'Supports image understanding 🖼️'
   if (id.includes('embed')) return 'Text embeddings model'
-  
   return 'General purpose AI model'
 }

@@ -511,6 +511,12 @@ export function ChatView({ id }: { id: string }) {
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModelSheet, setShowModelSheet] = useState(false);
+  // Message search within conversation
+  const [msgSearchQuery, setMsgSearchQuery] = useState('');
+  const [showMsgSearch, setShowMsgSearch] = useState(false);
+  const [msgMatchIndices, setMsgMatchIndices] = useState<number[]>([]);
+  const [currentMsgMatch, setCurrentMsgMatch] = useState(0);
+  const msgSearchRef = useRef<TextInput>(null);
 
   const conversation = getConversation(id);
   const isThisStreaming = isStreaming && streaming.conversationId === id;
@@ -548,6 +554,47 @@ export function ChatView({ id }: { id: string }) {
     return groups;
   }, [conversation?.messages]);
 
+  // Message search logic
+  const runMsgSearch = useCallback((query: string) => {
+    if (!query.trim() || !conversation) {
+      setMsgMatchIndices([]);
+      setCurrentMsgMatch(0);
+      return;
+    }
+    const q = query.toLowerCase();
+    const matches: number[] = [];
+    conversation.messages.forEach((msg, idx) => {
+      if (msg.content.toLowerCase().includes(q)) {
+        matches.push(idx);
+      }
+    });
+    setMsgMatchIndices(matches);
+    setCurrentMsgMatch(matches.length > 0 ? 0 : -1);
+  }, [conversation?.messages]);
+
+  const handleMsgSearchChange = (text: string) => {
+    setMsgSearchQuery(text);
+    runMsgSearch(text);
+  };
+
+  const scrollToMsg = (index: number) => {
+    // The message elements don't have refs, so we scroll the ScrollView
+    // and highlight by re-rendering with the match index
+    setCurrentMsgMatch(index);
+  };
+
+  const goToNextMatch = () => {
+    if (msgMatchIndices.length === 0) return;
+    const next = (currentMsgMatch + 1) % msgMatchIndices.length;
+    scrollToMsg(next);
+  };
+
+  const goToPrevMatch = () => {
+    if (msgMatchIndices.length === 0) return;
+    const prev = (currentMsgMatch - 1 + msgMatchIndices.length) % msgMatchIndices.length;
+    scrollToMsg(prev);
+  };
+
   if (!conversation) {
     return (
       <View
@@ -563,8 +610,8 @@ export function ChatView({ id }: { id: string }) {
     );
   }
 
-  const handleSend = (text: string, reply?: ReplyTo) => {
-    sendMessage(id, text, reply);
+  const handleSend = (text: string, reply?: ReplyTo, images?: string[]) => {
+    sendMessage(id, text, reply, images);
     setReplyTo(undefined);
   };
 
@@ -658,7 +705,84 @@ export function ChatView({ id }: { id: string }) {
           {conversation.modelName}
         </Text>
         <Text style={{ fontSize: 11, color: theme.textSecondary, marginLeft: 4 }}>▾</Text>
+        {/* Message search toggle */}
+        <Pressable
+          onPress={() => {
+            setShowMsgSearch(!showMsgSearch);
+            if (!showMsgSearch) {
+              setTimeout(() => msgSearchRef.current?.focus(), 100);
+            } else {
+              setMsgSearchQuery('');
+              setMsgMatchIndices([]);
+              setCurrentMsgMatch(0);
+            }
+          }}
+          style={({ pressed }) => ({
+            marginLeft: 8,
+            opacity: pressed ? 0.6 : 0.5,
+          })}
+        >
+          <Text style={{ fontSize: 16 }}>🔍</Text>
+        </Pressable>
       </Pressable>
+
+      {/* Message search bar */}
+      {showMsgSearch && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            backgroundColor: theme.background,
+            borderBottomWidth: 0.5,
+            borderBottomColor: theme.backgroundSelected,
+          }}
+        >
+          <TextInput
+            ref={msgSearchRef}
+            value={msgSearchQuery}
+            onChangeText={handleMsgSearchChange}
+            placeholder="Search messages..."
+            placeholderTextColor={theme.textSecondary}
+            style={{
+              flex: 1,
+              fontSize: 15,
+              color: theme.text,
+              backgroundColor: theme.backgroundElement,
+              borderRadius: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+            }}
+          />
+          {msgSearchQuery.length > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
+              <Text style={{ fontSize: 12, color: theme.textSecondary, marginRight: 6 }}>
+                {msgMatchIndices.length > 0
+                  ? `${currentMsgMatch + 1}/${msgMatchIndices.length}`
+                  : '0/0'}
+              </Text>
+              <Pressable onPress={goToPrevMatch} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 16, color: '#007AFF' }}>▲</Text>
+              </Pressable>
+              <Pressable onPress={goToNextMatch} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 16, color: '#007AFF' }}>▼</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setShowMsgSearch(false);
+                  setMsgSearchQuery('');
+                  setMsgMatchIndices([]);
+                  setCurrentMsgMatch(0);
+                }}
+                style={{ padding: 4, marginLeft: 4 }}
+              >
+                <Text style={{ fontSize: 16, color: '#FF453A' }}>✕</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}

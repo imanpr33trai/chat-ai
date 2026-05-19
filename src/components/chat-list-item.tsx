@@ -19,6 +19,7 @@ type ChatListItemProps = {
   modelName: string
   onPress: () => void
   onDelete?: () => void
+  onRename?: () => void
 }
 
 function formatTime(ts: number): string {
@@ -46,6 +47,7 @@ export function ChatListItem({
   modelName,
   onPress,
   onDelete,
+  onRename,
 }: ChatListItemProps) {
   const theme = useTheme()
   const translateX = useRef(new Animated.Value(0)).current
@@ -179,6 +181,17 @@ export function ChatListItem({
               >
                 {title}
               </Text>
+              {onRename && (
+                <Pressable
+                  onPress={onRename}
+                  hitSlop={8}
+                  style={{ marginLeft: 4, padding: 2 }}
+                >
+                  <Text style={{ fontSize: 14, color: theme.textSecondary }}>
+                    ✎
+                  </Text>
+                </Pressable>
+              )}
               <Text
                 style={{
                   fontSize: 12,

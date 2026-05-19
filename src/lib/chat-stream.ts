@@ -2,20 +2,31 @@
  * SSE streaming client for /api/chat (OpenAI-compatible chunk parsing).
  */
 
+export interface ToolCall {
+  id: string;
+  type: string;
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
 interface StreamCallbacks {
   onToken: (token: string) => void;
   onThinkingToken?: (token: string) => void;
-  onDone: (fullContent: string, thinkingContent?: string) => void;
+  onDone: (fullContent: string, thinkingContent?: string, toolCalls?: ToolCall[], usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }) => void;
   onError: (err: Error) => void;
 }
 
 interface StreamOptions {
   model: string;
-  messages: { role: string; content: string | null }[];
+  messages: { role: string; content: string | null | { type: string; text?: string; image_url?: { url: string } }[] }[];
   signal?: AbortSignal;
   temperature?: number;
   max_tokens?: number;
 }
+
+import { getApiKey } from './api-key';
 
 const API_BASE =
   typeof window !== "undefined"
@@ -34,12 +45,23 @@ export function startStream(
   const signal = opts.signal ?? controller.signal;
 
   let fullContent = "";
+  let lastUsage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
+
+  // Accumulator for tool calls keyed by index
+  const toolCallAccumulator: Record<
+    number,
+    { id?: string; type?: string; function: { name?: string; arguments: string } }
+  > = {};
 
   (async () => {
     try {
+      const apiKey = getApiKey();
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(apiKey ? { "x-api-key": apiKey } : {}),
+        },
         body: JSON.stringify({
           model: opts.model,
           messages: opts.messages,
@@ -89,19 +111,26 @@ export function startStream(
 
           const data = trimmed.slice(6);
           if (data === "[DONE]") {
-            callbacks.onDone(fullContent, fullThinking || undefined);
+            // Convert accumulator to final tool calls array
+            const finalToolCalls = buildToolCalls(toolCallAccumulator);
+            callbacks.onDone(fullContent, fullThinking || undefined, finalToolCalls, lastUsage);
             return;
           }
 
           try {
             const chunk = JSON.parse(data);
             const delta = chunk.choices?.[0]?.delta;
-            
+
+            // Capture usage if present (sent in final chunk)
+            if (chunk.usage) {
+              lastUsage = chunk.usage;
+            }
+
             // Handle reasoning/thinking content (DeepSeek R1 and similar)
             const reasoningToken = delta?.reasoning_content ?? "";
             if (reasoningToken) {
               thinkingBuffer += reasoningToken;
-              
+
               // Check for thinking tags to detect when thinking starts/ends
               if (reasoningToken === "<") {
                 inThinking = true;
@@ -119,12 +148,31 @@ export function startStream(
                 callbacks.onThinkingToken?.(reasoningToken);
               }
             }
-            
+
             // Handle regular content
             const token = delta?.content ?? "";
             if (token) {
               fullContent += token;
               callbacks.onToken(token);
+            }
+
+            // Handle tool calls (incremental accumulation per index)
+            if (delta?.tool_calls && Array.isArray(delta.tool_calls)) {
+              for (const tc of delta.tool_calls) {
+                const idx = tc.index;
+                if (!toolCallAccumulator[idx]) {
+                  toolCallAccumulator[idx] = { function: { arguments: "" } };
+                }
+                const entry = toolCallAccumulator[idx];
+                if (tc.id) entry.id = tc.id;
+                if (tc.type) entry.type = tc.type;
+                if (tc.function) {
+                  if (tc.function.name) entry.function.name = tc.function.name;
+                  if (tc.function.arguments) {
+                    entry.function.arguments += tc.function.arguments;
+                  }
+                }
+              }
             }
           } catch {
             // skip malformed chunks
@@ -133,7 +181,8 @@ export function startStream(
       }
 
       // Stream ended without [DONE] (some providers omit it)
-      callbacks.onDone(fullContent, fullThinking || undefined);
+      const finalToolCalls = buildToolCalls(toolCallAccumulator);
+      callbacks.onDone(fullContent, fullThinking || undefined, finalToolCalls, lastUsage);
     } catch (err: any) {
       if (err.name === "AbortError") return; // cancelled, not an error
       callbacks.onError(err);
@@ -141,4 +190,33 @@ export function startStream(
   })();
 
   return controller;
+}
+
+/**
+ * Convert the per-index accumulator into a proper ToolCall[] array,
+ * dropping any entries that are incomplete (missing required fields).
+ */
+function buildToolCalls(
+  acc: Record<number, { id?: string; type?: string; function: { name?: string; arguments: string } }>,
+): ToolCall[] | undefined {
+  const indices = Object.keys(acc)
+    .map(Number)
+    .sort((a, b) => a - b);
+  if (indices.length === 0) return undefined;
+
+  const calls: ToolCall[] = [];
+  for (const idx of indices) {
+    const entry = acc[idx];
+    if (entry.id && entry.type && entry.function.name) {
+      calls.push({
+        id: entry.id,
+        type: entry.type,
+        function: {
+          name: entry.function.name,
+          arguments: entry.function.arguments,
+        },
+      });
+    }
+  }
+  return calls.length > 0 ? calls : undefined;
 }
