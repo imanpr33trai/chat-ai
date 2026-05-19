@@ -94,21 +94,14 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  # ─── Stage 3: Notify ─────────────────────────────────────────────
-  notify:
+  # ─── Stage 3: Comment on PR ─────────────────────────────────────
+  comment-pr:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
-      - name: Notify on success
-        if: success()
-        run: |
-          bash ./script/slack-notify.sh \
-            "${{ secrets.SLACK_WEBHOOK }}" \
-            "Preview APK built successfully — \`${{ github.sha }}\`" \
-            "success"
-
       - name: Comment on PR — success
-        if: success() && github.event_name == 'pull_request'
+        if: success()
         uses: actions/github-script@v7
         with:
           script: |
@@ -119,16 +112,8 @@ jobs:
               body: `### Preview Build ✅\n**Commit:** \`${{ github.sha }}\`\n\nDownload the APK from the Artifacts section above.`
             })
 
-      - name: Notify on failure
-        if: failure()
-        run: |
-          bash ./script/slack-notify.sh \
-            "${{ secrets.SLACK_WEBHOOK }}" \
-            "Preview build FAILED — \`${{ github.sha }}\` — ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-            "failure"
-
       - name: Comment on PR — failure
-        if: failure() && github.event_name == 'pull_request'
+        if: failure()
         uses: actions/github-script@v7
         with:
           script: |
