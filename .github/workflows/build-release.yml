@@ -10,7 +10,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci-lint-typecheck.yml
+    with:
+      ref: ${{ github.sha }}
+
   build:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
