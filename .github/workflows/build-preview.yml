@@ -5,8 +5,7 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - master
-      - main
+      - preview
   workflow_dispatch:
 
 concurrency:
