@@ -41,11 +41,8 @@ jobs:
       - name: TypeScript check
         run: bunx tsc --noEmit --pretty
 
-      - name: ESLint check
-        run: bunx eslint src --ext .ts,.tsx 2>&1 || echo "No ESLint config — skipping"
-
-      - name: Expo lint
-        run: bunx expo lint 2>&1 || echo "Expo lint not configured — skipping"
+      - name: Lint
+        run: bun run lint
 
       - name: Download actionlint
         id: get_actionlint
