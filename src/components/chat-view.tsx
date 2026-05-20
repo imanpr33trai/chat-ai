@@ -908,12 +908,9 @@ export function ChatView({ id }: { id: string }) {
 
       <ChatInput
         onSend={handleSend}
-        onStop={handleStop}
         onSaveDraft={(draft) => saveDraft(id, draft)}
-        initialDraft={drafts[id] || ""}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(undefined)}
-        isStreaming={isThisStreaming}
       />
 
       {/* Edit Modal */}

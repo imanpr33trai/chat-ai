@@ -2,9 +2,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   Text,
@@ -151,7 +149,6 @@ function FormatToolbar({
         </Pressable>
       ))}
 
-      {/* Slash command hint */}
       <Pressable
         style={({ pressed }) => ({
           marginLeft: 'auto',
@@ -182,9 +179,6 @@ export default function ChatInput({
   onCancelReply,
   onFormat,
   onSaveDraft,
-  initialDraft,
-  isStreaming,
-  onStop,
 }: {
   text?: string;
   onChangeText?: (text: string) => void;
@@ -194,9 +188,6 @@ export default function ChatInput({
   onCancelReply?: () => void;
   onFormat?: (before: string, after: string) => void;
   onSaveDraft?: (text: string) => void;
-  initialDraft?: string;
-  isStreaming?: boolean;
-  onStop?: () => void;
 }) {
   const theme = useTheme();
   const [showSlash, setShowSlash] = useState(false);
@@ -204,12 +195,12 @@ export default function ChatInput({
   const [inputText, setInputText] = useState(text ?? '');
   const inputRef = useRef<TextInput>(null);
 
-  // Sync external inputText prop changes
+  // Sync external text prop changes
   useEffect(() => {
-    if (inputText !== undefined) {
-      setInputText(inputText);
+    if (text !== undefined) {
+      setInputText(text);
     }
-  }, [inputText]);
+  }, [text]);
 
   // Auto-save draft
   useEffect(() => {
@@ -219,6 +210,7 @@ export default function ChatInput({
       }, 500);
       return () => { clearTimeout(timer); };
     }
+    return undefined;
   }, [inputText, onSaveDraft]);
 
   // Slash command detection
@@ -273,17 +265,14 @@ export default function ChatInput({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ backgroundColor: theme.background }}
     >
-      {/* Reply Preview */}
       {replyTo && onCancelReply && (
         <ReplyPreview replyTo={replyTo} onCancel={onCancelReply} />
       )}
 
-      {/* Formatting Toolbar */}
       {onFormat && (
         <FormatToolbar onFormat={onFormat} />
       )}
 
-      {/* Slash Command Suggestions */}
       {showSlash && (
         <View
           style={{
@@ -319,7 +308,6 @@ export default function ChatInput({
         </View>
       )}
 
-      {/* Input Area */}
       <View
         style={{
           flexDirection: 'row',
@@ -331,7 +319,6 @@ export default function ChatInput({
           borderTopColor: theme.metallicBorder,
         }}
       >
-        {/* Image Picker */}
         <Pressable
           onPress={handleImagePick}
           style={({ pressed }) => ({
@@ -346,7 +333,6 @@ export default function ChatInput({
           <Text style={{ fontSize: 20, color: theme.textSecondary }}>🖼️</Text>
         </Pressable>
 
-        {/* Text Input */}
         <View
           style={{
             flex: 1,
@@ -363,7 +349,7 @@ export default function ChatInput({
           <TextInput
             ref={inputRef}
             value={inputText}
-            onChangeText={onChangeText}
+            onChangeText={setInputText}
             placeholder="Type a message..."
             placeholderTextColor={theme.textSecondary}
             multiline
@@ -376,7 +362,6 @@ export default function ChatInput({
           />
         </View>
 
-        {/* Send Button */}
         <Pressable
           onPress={handleSend}
           disabled={!inputText.trim()}
