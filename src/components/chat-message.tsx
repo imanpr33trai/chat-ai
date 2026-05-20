@@ -1,17 +1,13 @@
-import React, { memo, useMemo, useState } from 'react'
+import React, { memo, useMemo, useState } from 'react';
 import {
   Image,
   Platform,
   Pressable,
   Text,
-  View
-} from 'react-native'
-import Animated, {
-  FadeIn,
-  FadeInDown,
-} from 'react-native-reanimated'
-
-import type { Message, MessageStatus, Reaction } from '@/hooks/use-chat-store'
+  View,
+} from 'react-native';
+import type { Message, MessageStatus, Reaction } from '@/hooks/use-chat-store';
+import { useTheme } from '@/hooks/use-theme';
 import { useTheme } from '@/hooks/use-theme'
 import { MessageContextMenu, ReactionPicker } from './message-context-menu'
 
@@ -584,8 +580,8 @@ export function ThinkingBubble({
   if (!cleanContent) return null
 
   return (
-    <Animated.View
-      entering={FadeIn.duration(200)}
+    <View
+      
       style={{
         marginBottom: 8,
         marginTop: collapsed ? 0 : 8
@@ -615,8 +611,8 @@ export function ThinkingBubble({
       </Pressable>
 
       {!collapsed && (
-        <Animated.View
-          entering={FadeIn.duration(150)}
+        <View
+          
           style={{
             backgroundColor: 'rgba(255, 159, 10, 0.1)',
             borderRadius: 12,
@@ -637,9 +633,9 @@ export function ThinkingBubble({
             {cleanContent}
             {isStreaming && <Text style={{ opacity: 0.6 }}>|</Text>}
           </Text>
-        </Animated.View>
+        </View>
       )}
-    </Animated.View>
+    </View>
   )
 }
 
@@ -730,23 +726,16 @@ export function ChatMessageInner({
   ]
 
   return (
-    <>
-      <Animated.View
-        entering={
-          isStreaming
-            ? FadeIn.duration(200)
-            : FadeInDown.delay(Math.min(index * 30, 200))
-                .duration(250)
-                .springify()
-        }
-        style={{
-          alignSelf: align,
-          maxWidth: '82%',
-          marginBottom: 10,
-          marginLeft: isUser ? 48 : 0,
-          marginRight: isUser ? 0 : 48
-        }}
-      >
+  return (
+    <View
+      style={{
+        alignSelf: align,
+        maxWidth: '82%',
+        marginBottom: 10,
+        marginLeft: isUser ? 48 : 0,
+        marginRight: isUser ? 0 : 48,
+      }}
+    >
         {/* Pin indicator */}
         {message.pinned && (
           <View
@@ -1080,7 +1069,7 @@ export function ChatMessageInner({
             </Text>
           </Pressable>
         )}
-      </Animated.View>
+      </View>
 
       <MessageContextMenu
         visible={showMenu}

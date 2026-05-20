@@ -1,5 +1,5 @@
-import { Stack, useRouter } from 'expo-router'
-import React, { useState } from 'react'
+import { Stack, useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -7,44 +7,41 @@ import {
   ScrollView,
   Text,
   TextInput,
-  View
-} from 'react-native'
-import Animated, { FadeInUp } from 'react-native-reanimated'
+  View,
+} from 'react-native';
+import { ChatListItem } from '@/components/chat-list-item';
+import { useChat } from '@/hooks/use-chat-store';
+import { useModels } from '@/hooks/use-models';
+import { useTheme } from '@/hooks/use-theme';
 
-import { ChatListItem } from '@/components/chat-list-item'
-import { useChat } from '@/hooks/use-chat-store'
-import { useModels } from '@/hooks/use-models'
-import { useTheme } from '@/hooks/use-theme'
-
-// ─── Model Selection Modal ────────────────────────────────────────
+// ─── Model Selection Modal ─────────────────────────────────
 
 function ModelSelectionModal({
   visible,
   onClose,
-  onSelect
+  onSelect,
 }: {
-  visible: boolean
-  onClose: () => void
-  onSelect: (modelId: string, modelName: string) => void
+  visible: boolean;
+  onClose: () => void;
+  onSelect: (modelId: string, modelName: string) => void;
 }) {
-  const theme = useTheme()
-  const { models, loading, error } = useModels()
-  const [selectedModel, setSelectedModel] = useState(models[0]?.id || '')
+  const theme = useTheme();
+  const { models, loading, error } = useModels();
+  const [selectedModel, setSelectedModel] = useState(models[0]?.id || '');
 
-  // Update selection when models load
   React.useEffect(() => {
     if (models.length > 0 && !selectedModel) {
-      setSelectedModel(models[0].id)
+      setSelectedModel(models[0].id);
     }
-  }, [models, selectedModel])
+  }, [models, selectedModel]);
 
   const handleStart = () => {
-    const model = models.find(m => m.id === selectedModel)
+    const model = models.find(m => m.id === selectedModel);
     if (model) {
-      onSelect(model.id, model.name)
+      onSelect(model.id, model.name);
     }
-    onClose()
-  }
+    onClose();
+  };
 
   return (
     <Modal
@@ -63,7 +60,8 @@ function ModelSelectionModal({
             paddingHorizontal: 16,
             paddingVertical: 14,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.backgroundSelected
+            borderBottomColor: theme.metallicBorder,
+            backgroundColor: theme.metallicLight,
           }}
         >
           <Pressable onPress={onClose}>
@@ -77,7 +75,7 @@ function ModelSelectionModal({
               style={{
                 fontSize: 17,
                 fontWeight: 600,
-                color: selectedModel ? '#007AFF' : theme.textSecondary
+                color: selectedModel ? '#007AFF' : theme.textSecondary,
               }}
             >
               Start
@@ -91,7 +89,7 @@ function ModelSelectionModal({
             style={{
               fontSize: 13,
               color: theme.textSecondary,
-              marginBottom: 12
+              marginBottom: 12,
             }}
           >
             Choose an AI model for this conversation
@@ -115,7 +113,7 @@ function ModelSelectionModal({
                 style={{
                   color: theme.textSecondary,
                   fontSize: 13,
-                  marginTop: 8
+                  marginTop: 8,
                 }}
               >
                 {error}
@@ -126,24 +124,25 @@ function ModelSelectionModal({
           {!loading &&
             !error &&
             models.map(model => {
-              const isSelected = selectedModel === model.id
+              const isSelected = selectedModel === model.id;
               return (
                 <Pressable
                   key={model.id}
                   onPress={() => setSelectedModel(model.id)}
-                  style={({ pressed }) => ({
+                  style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     paddingHorizontal: 16,
                     paddingVertical: 14,
-                    borderRadius: 12,
-                    borderCurve: 'continuous',
+                    borderRadius: 8,
                     backgroundColor: isSelected
-                      ? theme.backgroundSelected
-                      : theme.backgroundElement,
+                      ? theme.metallicMid
+                      : theme.metallicLight,
                     marginBottom: 8,
-                    opacity: pressed ? 0.8 : 1
-                  })}
+                    borderWidth: 1,
+                    borderColor: isSelected ? '#007AFF' : theme.metallicBorder,
+                    opacity: 1,
+                  }}
                 >
                   <View
                     style={{
@@ -154,7 +153,7 @@ function ModelSelectionModal({
                       borderColor: isSelected ? '#007AFF' : theme.textSecondary,
                       justifyContent: 'center',
                       alignItems: 'center',
-                      marginRight: 12
+                      marginRight: 12,
                     }}
                   >
                     {isSelected && (
@@ -163,7 +162,7 @@ function ModelSelectionModal({
                           width: 12,
                           height: 12,
                           borderRadius: 6,
-                          backgroundColor: '#007AFF'
+                          backgroundColor: '#007AFF',
                         }}
                       />
                     )}
@@ -176,7 +175,7 @@ function ModelSelectionModal({
                         style={{
                           fontSize: 16,
                           fontWeight: 600,
-                          color: theme.text
+                          color: theme.text,
                         }}
                       >
                         {model.name}
@@ -187,14 +186,14 @@ function ModelSelectionModal({
                           paddingHorizontal: 6,
                           paddingVertical: 2,
                           borderRadius: 4,
-                          backgroundColor: theme.backgroundSelected
+                          backgroundColor: theme.metallicMid,
                         }}
                       >
                         <Text
                           style={{
                             fontSize: 11,
                             fontWeight: 500,
-                            color: theme.textSecondary
+                            color: theme.textSecondary,
                           }}
                         >
                           {model.provider}
@@ -205,65 +204,54 @@ function ModelSelectionModal({
                       style={{
                         fontSize: 13,
                         color: theme.textSecondary,
-                        marginTop: 2
+                        marginTop: 2,
                       }}
                     >
                       {model.description}
                     </Text>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        color: theme.textSecondary,
-                        marginTop: 4,
-                        opacity: 0.7
-                      }}
-                      numberOfLines={1}
-                    >
-                      {model.id}
-                    </Text>
                   </View>
                 </Pressable>
-              )
+              );
             })}
         </ScrollView>
       </View>
     </Modal>
-  )
+  );
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────
+// ─── Main Screen ──────────────────────────────────────────────
 
 export default function ChatsScreen() {
-  const { state, deleteChat, createChat, updateConversation } = useChat()
-  const theme = useTheme()
-  const router = useRouter()
-  const [showModelModal, setShowModelModal] = useState(false)
-  const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null)
-  const [renameText, setRenameText] = useState('')
+  const { state, deleteChat, createChat, updateConversation } = useChat();
+  const theme = useTheme();
+  const router = useRouter();
+  const [showModelModal, setShowModelModal] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<{ id: string; title: string } | null>(null);
+  const [renameText, setRenameText] = useState('');
 
   const handleNewChat = (modelId: string, modelName: string) => {
-    const title = `Chat with ${modelName}`
-    const id = createChat(title, modelId)
-    router.push(`/chat/${id}`)
-  }
+    const title = `Chat with ${modelName}`;
+    const id = createChat(title, modelId);
+    router.push(`/chat/${id}`);
+  };
 
   const handleRenameStart = (convId: string, currentTitle: string) => {
-    setRenameText(currentTitle)
-    setRenameTarget({ id: convId, title: currentTitle })
-  }
+    setRenameText(currentTitle);
+    setRenameTarget({ id: convId, title: currentTitle });
+  };
 
   const handleRenameConfirm = () => {
     if (renameTarget && renameText.trim()) {
-      updateConversation(renameTarget.id, { title: renameText.trim() })
+      updateConversation(renameTarget.id, { title: renameText.trim() });
     }
-    setRenameTarget(null)
-    setRenameText('')
-  }
+    setRenameTarget(null);
+    setRenameText('');
+  };
 
   const handleRenameCancel = () => {
-    setRenameTarget(null)
-    setRenameText('')
-  }
+    setRenameTarget(null);
+    setRenameText('');
+  };
 
   return (
     <>
@@ -280,7 +268,7 @@ export default function ChatsScreen() {
               alignItems: 'center',
               justifyContent: 'center',
               paddingTop: 120,
-              paddingHorizontal: 32
+              paddingHorizontal: 32,
             }}
           >
             <View
@@ -288,10 +276,12 @@ export default function ChatsScreen() {
                 width: 64,
                 height: 64,
                 borderRadius: 32,
-                backgroundColor: theme.backgroundElement,
+                backgroundColor: theme.metallicLight,
                 justifyContent: 'center',
                 alignItems: 'center',
-                marginBottom: 16
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: theme.metallicBorder,
               }}
             >
               <Text style={{ fontSize: 28, color: theme.textSecondary }}>
@@ -303,7 +293,7 @@ export default function ChatsScreen() {
                 fontSize: 20,
                 fontWeight: 600,
                 color: theme.text,
-                marginBottom: 4
+                marginBottom: 4,
               }}
             >
               No conversations yet
@@ -314,25 +304,24 @@ export default function ChatsScreen() {
                 color: theme.textSecondary,
                 textAlign: 'center',
                 lineHeight: 22,
-                marginBottom: 24
+                marginBottom: 24,
               }}
             >
-              Start a new chat to begin{'\n'}conversating with AI models
+              Start a new chat to begin{'\\n'}conversing with AI models
             </Text>
 
             {/* New Chat Button */}
             <Pressable
               onPress={() => {
-                setShowModelModal(true)
+                setShowModelModal(true);
               }}
-              style={({ pressed }) => ({
+              style={{
                 backgroundColor: '#007AFF',
                 paddingVertical: 14,
                 paddingHorizontal: 32,
-                borderRadius: 12,
+                borderRadius: 8,
                 borderCurve: 'continuous',
-                opacity: pressed ? 0.8 : 1
-              })}
+              }}
             >
               <Text style={{ color: '#fff', fontSize: 17, fontWeight: 600 }}>
                 New Chat
@@ -340,8 +329,7 @@ export default function ChatsScreen() {
             </Pressable>
           </View>
         ) : (
-          <Animated.View
-            entering={FadeInUp.duration(350).springify()}
+          <View
             style={{ paddingTop: 8 }}
           >
             {state.conversations.map(conv => (
@@ -356,10 +344,10 @@ export default function ChatsScreen() {
                 timestamp={conv.updatedAt}
                 modelName={conv.modelName}
                 onPress={() => {
-                  router.push(`/chat/${conv.id}`)
+                  router.push(`/chat/${conv.id}`);
                 }}
                 onDelete={() => {
-                  deleteChat(conv.id)
+                  deleteChat(conv.id);
                 }}
                 onRename={() => handleRenameStart(conv.id, conv.title)}
               />
@@ -368,19 +356,20 @@ export default function ChatsScreen() {
             {/* New Chat Button at Bottom */}
             <Pressable
               onPress={() => {
-                setShowModelModal(true)
+                setShowModelModal(true);
               }}
-              style={({ pressed }) => ({
+              style={{
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
                 paddingVertical: 16,
                 marginTop: 8,
                 marginHorizontal: 16,
-                borderRadius: 12,
-                backgroundColor: theme.backgroundElement,
-                opacity: pressed ? 0.7 : 1
-              })}
+                borderRadius: 8,
+                backgroundColor: theme.metallicLight,
+                borderWidth: 1,
+                borderColor: theme.metallicBorder,
+              }}
             >
               <Text style={{ fontSize: 18, marginRight: 8, color: '#007AFF' }}>
                 +
@@ -389,7 +378,7 @@ export default function ChatsScreen() {
                 New Chat
               </Text>
             </Pressable>
-          </Animated.View>
+          </View>
         )}
       </ScrollView>
 
@@ -397,7 +386,7 @@ export default function ChatsScreen() {
       <ModelSelectionModal
         visible={showModelModal}
         onClose={() => {
-          setShowModelModal(false)
+          setShowModelModal(false);
         }}
         onSelect={handleNewChat}
       />
@@ -424,7 +413,7 @@ export default function ChatsScreen() {
           <View
             style={{
               backgroundColor: theme.background,
-              borderRadius: 14,
+              borderRadius: 10,
               padding: 24,
               width: '80%',
               maxWidth: 400,
@@ -443,12 +432,14 @@ export default function ChatsScreen() {
             </Text>
             <TextInput
               style={{
-                backgroundColor: theme.backgroundElement,
-                borderRadius: 10,
+                backgroundColor: theme.metallicLight,
+                borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
                 color: theme.text,
                 marginBottom: 20,
+                borderWidth: 1,
+                borderColor: theme.metallicBorder,
               }}
               placeholder="Enter new title"
               placeholderTextColor={theme.textSecondary}
@@ -464,9 +455,11 @@ export default function ChatsScreen() {
                   flex: 1,
                   paddingVertical: 12,
                   marginRight: 8,
-                  borderRadius: 10,
-                  backgroundColor: theme.backgroundElement,
+                  borderRadius: 8,
+                  backgroundColor: theme.metallicLight,
                   alignItems: 'center',
+                  borderWidth: 1,
+                  borderColor: theme.metallicBorder,
                 }}
               >
                 <Text style={{ fontSize: 16, color: theme.textSecondary }}>Cancel</Text>
@@ -477,7 +470,7 @@ export default function ChatsScreen() {
                   flex: 1,
                   paddingVertical: 12,
                   marginLeft: 8,
-                  borderRadius: 10,
+                  borderRadius: 8,
                   backgroundColor: '#007AFF',
                   alignItems: 'center',
                 }}
@@ -489,5 +482,5 @@ export default function ChatsScreen() {
         </View>
       </Modal>
     </>
-  )
+  );
 }

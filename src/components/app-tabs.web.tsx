@@ -1,11 +1,12 @@
 import type {
   TabListProps,
-  TabTriggerSlotProps} from "expo-router/ui";
+  TabTriggerSlotProps,
+} from "expo-router/ui";
 import {
   TabList,
   Tabs,
   TabSlot,
-  TabTrigger
+  TabTrigger,
 } from "expo-router/ui";
 import React from "react";
 import { Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
@@ -33,8 +34,8 @@ export default function AppTabs() {
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <View style={[styles.tabButtonView, { backgroundColor: isFocused ? "#007AFF" : "#E0E1E6" }]}>
-        <Text style={[styles.tabButtonText, { color: isFocused ? "#fff" : "#60646C" }]}>
+      <View style={[styles.tabButtonView, { backgroundColor: isFocused ? Colors.metallicMid : Colors.metallicLight, borderColor: isFocused ? '#007AFF' : Colors.metallicBorder }]}>
+        <Text style={[styles.tabButtonText, { color: isFocused ? '#007AFF' : Colors.textSecondary }]}>
           {children}
         </Text>
       </View>
@@ -48,7 +49,7 @@ export function CustomTabList(props: TabListProps) {
 
   return (
     <View {...props} style={styles.tabListContainer}>
-      <View style={[styles.innerContainer, { backgroundColor: colors.backgroundElement }]}>
+      <View style={[styles.innerContainer, { backgroundColor: colors.tabBarBackground, borderTopColor: colors.metallicBorder }]}>
         <Text style={[styles.brandText, { color: colors.text }]}>AI Chat</Text>
         <View style={styles.spacer} />
         {props.children}
@@ -69,16 +70,18 @@ const styles = StyleSheet.create({
   innerContainer: {
     paddingVertical: 8,
     paddingHorizontal: 24,
-    borderRadius: 32,
+    borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     flexGrow: 1,
     gap: 8,
     maxWidth: 800,
+    borderTopWidth: 0.5,
   },
   brandText: {
     fontSize: 14,
     fontWeight: 700,
+    letterSpacing: -0.2,
     marginRight: "auto",
   },
   spacer: {
@@ -88,9 +91,10 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   tabButtonView: {
-    paddingVertical: 4,
+    paddingVertical: 6,
     paddingHorizontal: 16,
-    borderRadius: 12,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   tabButtonText: {
     fontSize: 14,
