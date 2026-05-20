@@ -49,9 +49,7 @@ export function MessageContextMenu({ visible, onClose, actions, position }: Prop
           style={[
             styles.menu,
             {
-              backgroundColor: theme.background === '#ffffff'
-                ? 'rgba(255, 255, 255, 0.95)'
-                : 'rgba(28, 28, 30, 0.95)',
+              backgroundColor: theme.isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
               borderColor: theme.backgroundSelected,
             },
           ]}
@@ -139,9 +137,7 @@ export function ReactionPicker({ visible, onClose, onSelect, currentReactions }:
           style={[
             styles.reactionPicker,
             {
-              backgroundColor: theme.background === '#ffffff'
-                ? 'rgba(255, 255, 255, 0.95)'
-                : 'rgba(28, 28, 30, 0.95)',
+              backgroundColor: theme.isDark ? 'rgba(28, 28, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
               borderColor: theme.backgroundSelected,
             },
           ]}

@@ -14,7 +14,7 @@ import {
   View,
 } from "react-native";
 
-import { ChatInput } from "@/components/chat-input";
+import ChatInput from "@/components/chat-input";
 import { ChatMessage, ThinkingBubble } from "@/components/chat-message";
 import { TypingIndicator } from "@/components/typing-indicator";
 import type { Reaction, ReplyTo } from "@/hooks/use-chat-store";

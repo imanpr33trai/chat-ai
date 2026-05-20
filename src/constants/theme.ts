@@ -13,7 +13,6 @@ export const Colors = {
     border: '#D1D5DB',
     accent: '#4A5568',
     accentLight: '#718096',
-    // Metallic palette — clean, reflective, minimal
     metallicLight: '#F8F9FA',
     metallicDark: '#E2E5EA',
     metallicMid: '#D5D8DD',
@@ -35,7 +34,6 @@ export const Colors = {
     border: '#33363B',
     accent: '#8B9BB5',
     accentLight: '#6B7E9A',
-    // Metallic palette — dark mode
     metallicLight: '#2E3035',
     metallicDark: '#1E2024',
     metallicMid: '#25282D',
@@ -47,7 +45,10 @@ export const Colors = {
     danger: '#E5534B',
     success: '#3FB561',
   },
-} as const;
+} as const satisfies Record<string, Record<string, string>>;
+
+export type ThemeColors = typeof Colors.light;
+export type ColorKey = keyof ThemeColors;
 
 export type ThemeColor = keyof typeof Colors.light;
 

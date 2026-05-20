@@ -182,35 +182,49 @@ export default function ChatInput({
   onCancelReply,
   onFormat,
   onSaveDraft,
+  initialDraft,
+  isStreaming,
+  onStop,
 }: {
-  text: string;
-  onChangeText: (text: string) => void;
-  onSend: () => void;
-  onImageSelect: (uri: string, base64: string) => void;
+  text?: string;
+  onChangeText?: (text: string) => void;
+  onSend?: (text: string, reply?: ReplyTo, images?: string[]) => void;
+  onImageSelect?: (uri: string, base64: string) => void;
   replyTo?: ReplyTo;
   onCancelReply?: () => void;
   onFormat?: (before: string, after: string) => void;
   onSaveDraft?: (text: string) => void;
+  initialDraft?: string;
+  isStreaming?: boolean;
+  onStop?: () => void;
 }) {
   const theme = useTheme();
   const [showSlash, setShowSlash] = useState(false);
   const [filteredCommands, setFilteredCommands] = useState<SlashCommand[]>([]);
+  const [inputText, setInputText] = useState(text ?? '');
   const inputRef = useRef<TextInput>(null);
+
+  // Sync external inputText prop changes
+  useEffect(() => {
+    if (inputText !== undefined) {
+      setInputText(inputText);
+    }
+  }, [inputText]);
 
   // Auto-save draft
   useEffect(() => {
-    if (text && onSaveDraft) {
+    if (inputText && onSaveDraft) {
       const timer = setTimeout(() => {
-        onSaveDraft(text);
+        onSaveDraft(inputText);
       }, 500);
       return () => { clearTimeout(timer); };
     }
-  }, [text, onSaveDraft]);
+  }, [inputText, onSaveDraft]);
 
   // Slash command detection
   useEffect(() => {
-    if (text.startsWith('/')) {
-      const query = text.toLowerCase();
+    if (inputText.startsWith('/')) {
+      const query = inputText.toLowerCase();
       const filtered = SLASH_COMMANDS.filter(cmd =>
         cmd.command.includes(query) || cmd.label.toLowerCase().includes(query)
       );
@@ -219,12 +233,11 @@ export default function ChatInput({
     } else {
       setShowSlash(false);
     }
-  }, [text]);
+  }, [inputText]);
 
   const handleSlashSelect = (cmd: SlashCommand) => {
-    if (onChangeText) {
-      onFormat?.(cmd.wrap[0], cmd.wrap[1]);
-      onSaveDraft?.('');
+    if (inputText && onChangeText) {
+      onChangeText(cmd.insert);
     }
     setShowSlash(false);
   };
@@ -239,7 +252,7 @@ export default function ChatInput({
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0].base64) {
-      onImageSelect(
+      onImageSelect?.(
         result.assets[0].uri,
         result.assets[0].base64
       );
@@ -247,11 +260,11 @@ export default function ChatInput({
   };
 
   const handleSend = () => {
-    if (text.trim()) {
+    if (inputText && inputText.trim()) {
       if (Platform.OS === 'ios') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
-      onSend();
+      onSend?.(inputText.trim(), replyTo);
     }
   };
 
@@ -349,7 +362,7 @@ export default function ChatInput({
         >
           <TextInput
             ref={inputRef}
-            value={text}
+            value={inputText}
             onChangeText={onChangeText}
             placeholder="Type a message..."
             placeholderTextColor={theme.textSecondary}
@@ -366,17 +379,17 @@ export default function ChatInput({
         {/* Send Button */}
         <Pressable
           onPress={handleSend}
-          disabled={!text.trim()}
+          disabled={!inputText.trim()}
           style={({ pressed }) => ({
             padding: 10,
             borderRadius: 8,
-            backgroundColor: text.trim()
+            backgroundColor: inputText.trim()
               ? '#007AFF'
               : theme.metallicMid,
-            opacity: text.trim() ? (pressed ? 0.8 : 1) : 0.5,
+            opacity: inputText.trim() ? (pressed ? 0.8 : 1) : 0.5,
           })}
         >
-          <Text style={{ fontSize: 18, color: text.trim() ? '#fff' : theme.textSecondary }}>
+          <Text style={{ fontSize: 18, color: inputText.trim() ? '#fff' : theme.textSecondary }}>
             ➤
           </Text>
         </Pressable>

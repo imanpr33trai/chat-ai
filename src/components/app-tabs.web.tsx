@@ -32,10 +32,18 @@ export default function AppTabs() {
 }
 
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === "unspecified" ? "light" : scheme];
+
   return (
     <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <View style={[styles.tabButtonView, { backgroundColor: isFocused ? Colors.metallicMid : Colors.metallicLight, borderColor: isFocused ? '#007AFF' : Colors.metallicBorder }]}>
-        <Text style={[styles.tabButtonText, { color: isFocused ? '#007AFF' : Colors.textSecondary }]}>
+      <View style={[styles.tabButtonView, {
+        backgroundColor: isFocused ? colors.metallicMid : colors.metallicLight,
+        borderColor: isFocused ? '#007AFF' : colors.metallicBorder,
+      }]}>
+        <Text style={[styles.tabButtonText, {
+          color: isFocused ? '#007AFF' : colors.textSecondary,
+        }]}>
           {children}
         </Text>
       </View>

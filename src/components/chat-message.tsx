@@ -415,10 +415,7 @@ function InlineText({
 
 function CodeBlock({ code }: { code: string }) {
   const theme = useTheme()
-  const bg =
-    theme.background === '#ffffff'
-      ? 'rgba(0,0,0,0.06)'
-      : 'rgba(255,255,255,0.08)'
+  const bg = theme.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'
 
   return (
     <View
@@ -460,10 +457,7 @@ function ToolCallDisplay({
   return (
     <View style={{ marginVertical: 6, gap: 6 }}>
       {toolCalls.map((tc, i) => {
-        const bg =
-          theme.background === '#ffffff'
-            ? 'rgba(88, 86, 214, 0.08)'
-            : 'rgba(88, 86, 214, 0.15)'
+        const bg = theme.isDark ? 'rgba(88, 86, 214, 0.15)' : 'rgba(88, 86, 214, 0.08)'
 
         let formattedArgs = tc.function.arguments
         try {
