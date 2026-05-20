@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import type { Message, MessageStatus, Reaction } from '@/hooks/use-chat-store';
 import { useTheme } from '@/hooks/use-theme';
-import { useTheme } from '@/hooks/use-theme'
 import { MessageContextMenu, ReactionPicker } from './message-context-menu'
 
 // ─── Status indicator ────────────────────────────────────────────
@@ -726,9 +725,9 @@ export function ChatMessageInner({
   ]
 
   return (
-  return (
-    <View
-      style={{
+    <>
+      <View
+        style={{
         alignSelf: align,
         maxWidth: '82%',
         marginBottom: 10,
