@@ -1,16 +1,23 @@
-name: Build Preview APK
+name: Build Android APK
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
   push:
-    branches:
-      - master
-      - main
+    branches: [master, main]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Build type"
+        required: true
+        default: "debug"
+        type: choice
+        options:
+          - debug
+          - release
 
 concurrency:
-  group: preview-${{ github.ref }}
+  group: android-build-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -19,146 +26,126 @@ permissions:
 
 env:
   EXPO_PUBLIC_API_URL: https://api-gateway-dun-two.vercel.app
+  NODE_VERSION: 20
 
 jobs:
-  # ─── Stage 1: CI checks ─────────────────────────────────────────
+  # ── Optional CI stage ────────────────────────
   ci:
     name: Lint & Typecheck
     uses: ./.github/workflows/_ci.yml
     with:
       ref: ${{ github.sha }}
 
-  # ─── Stage 2: Build (only if CI passed) ──────────────────────────
+  # ── Build job (needs CI) ─────────────────────
   build:
+    name: Build APK (${{ matrix.build_type }})
     needs: ci
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build_type:
+          - ${{ (github.event_name == 'pull_request' && 'debug') || (github.event_name == 'push' && 'release') || github.event.inputs.build_type }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Node is required for expo-cli
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm" # or 'yarn' / 'bun' depending on your lockfile
+
+      # Optional: still use Bun if you prefer (but keep Node)
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      - name: Cache node_modules
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
       - name: Install dependencies
-        run: bun install
+        run: |
+          if [ -f bun.lock ]; then
+            bun install
+          else
+            npm ci
+          fi
 
-      - name: Run expo doctor
-        run: bunx expo-doctor@latest 2>&1 || bunx expo-doctor@latest
-
+      # ── Generate native project ──
       - name: Expo Prebuild
         run: npx expo prebuild --platform android --clean
 
-      - name: Set up JDK 17
+      # ── Java & Gradle cache ──
+      - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
-          java-version: '17'
-          cache: 'gradle'
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
 
-      - name: Bundle JavaScript & API routes
-        run: |
-          npx expo export \
-            --platform android \
-            --output-dir dist \
-            --no-bytecode \
-            --no-ssg
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
 
-      - name: Copy JS bundle to Android assets
-        run: |
-          mkdir -p android/app/src/main/assets
-          cp dist/index.android.bundle android/app/src/main/assets/index.android.bundle 2>/dev/null || \
-          cp dist/_expo/static/js/android/*.js android/app/src/main/assets/ 2>/dev/null || \
-          cp dist/index.js android/app/src/main/assets/index.android.bundle 2>/dev/null || \
-          echo "Warning: bundle copy failed — checking dist structure"
-          ls -R dist/ || true
-
-      - name: Copy API server bundle to Android assets
-        run: |
-          cp dist/server/index.js android/app/src/main/assets/server.js 2>/dev/null || \
-          cp dist/_expo/routes.json android/app/src/main/assets/routes.json 2>/dev/null || \
-          echo "API server routes will be loaded from embedded bundle"
-
-      - name: Copy asset files to Android
-        run: |
-          if [ -d dist/assets ]; then
-            cp -r dist/assets android/app/src/main/assets/ 2>/dev/null || true
-          fi
-
+      # ── Decode keystore only for release ──
       - name: Decode Keystore
+        if: matrix.build_type == 'release'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/my-release-key.keystore
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
 
-      - name: Make Gradle Executable
-        run: chmod +x android/gradlew
-
-      - name: Set Gradle build flags
-        run: |
-          echo "org.gradle.jvmargs=-XX:MaxMetaspaceSize=1g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> android/gradle.properties
-          echo "org.gradle.parallel=true" >> android/gradle.properties
-          echo "org.gradle.daemon=false" >> android/gradle.properties
-
-      - name: Build Android Debug APK
+      # ── Build ──
+      - name: Build Android APK
         env:
-          MYAPP_RELEASE_STORE_FILE: my-release-key.keystore
-          MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          STORE_FILE: ${{ matrix.build_type == 'release' && 'release.keystore' || '' }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           cd android
-          ./gradlew assembleDebug \
-            -PMYAPP_RELEASE_STORE_FILE=$MYAPP_RELEASE_STORE_FILE \
-            -PMYAPP_RELEASE_STORE_PASSWORD=$MYAPP_RELEASE_STORE_PASSWORD \
-            -PMYAPP_RELEASE_KEY_ALIAS=$MYAPP_RELEASE_KEY_ALIAS \
-            -PMYAPP_RELEASE_KEY_PASSWORD=$MYAPP_RELEASE_KEY_PASSWORD \
-            --no-daemon
+          if [ "${{ matrix.build_type }}" = "release" ]; then
+            ./gradlew assembleRelease \
+              -PMYAPP_RELEASE_STORE_FILE=$STORE_FILE \
+              -PMYAPP_RELEASE_STORE_PASSWORD=$STORE_PASSWORD \
+              -PMYAPP_RELEASE_KEY_ALIAS=$KEY_ALIAS \
+              -PMYAPP_RELEASE_KEY_PASSWORD=$KEY_PASSWORD \
+              --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
 
-      - name: Upload artifact
+      # ── Upload ──
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: preview-apk-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-${{ matrix.build_type }}-${{ github.sha }}
+          path: android/app/build/outputs/apk/${{ matrix.build_type }}/app-${{ matrix.build_type }}.apk
           retention-days: 7
           if-no-files-found: error
 
-  # ─── Stage 3: Comment on PR ─────────────────────────────────────
+  # ── PR comment (always runs) ────────────────
   comment-pr:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: always() && github.event_name == 'pull_request'
     steps:
-      - name: Comment on PR — success
-        if: success()
+      - name: Post result comment
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.createComment({
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const status = '${{ needs.build.result }}';
+            const sha = '${{ github.sha }}'.substring(0,7);
+
+            let body;
+            if (status === 'success') {
+              body = `### ✅ Preview Build Ready\n**Commit:** \`${sha}\`\n\nDownload the debug APK from the **Artifacts** section below.\n\n[View run](${runUrl})`;
+            } else {
+              body = `### ❌ Preview Build Failed\n**Commit:** \`${sha}\`\n\nCheck the [Actions log](${runUrl}) for details.`;
+            }
+
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### Preview Build ✅\n**Commit:** \`${{ github.sha }}\`\n\nDownload the APK from the Artifacts section above.`
-            })
-
-      - name: Comment on PR — failure
-        if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-
-              body: `### Preview Build ❌\nBuild failed for \`${{ github.sha }}\` — check the [Actions log](${{ github.run_url }}).`
-            })
+              body
+            });
