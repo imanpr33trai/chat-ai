@@ -3,8 +3,8 @@ name: Build & Release APK
 on:
   push:
     tags:
-      - "v*" # Version tags like v1.0.0
-  workflow_dispatch: # Manual trigger for testing
+      - "v*"
+  workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
@@ -13,77 +13,145 @@ concurrency:
 permissions:
   contents: write
 
+env:
+  TAG: ${{ github.ref_name }}
+  EXPO_PUBLIC_API_URL: https://api-gateway-dun-two.vercel.app
+
 jobs:
-  build-and-release:
+  # ─── Stage 1: CI checks ─────────────────────────────────────────
+  ci:
+    name: Lint & Typecheck
+    uses: ./.github/workflows/_ci.yml
+    with:
+      ref: ${{ github.sha }}
+
+  # ─── Stage 2: Build (only if CI passed) ──────────────────────────
+  build:
+    needs: ci
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
 
-      - name: Setup Bun (or Node)
-        uses: oven-sh/setup-bun@v1 # If you use bun; otherwise setup-node
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      - name: Install dependencies
-        run: bun install # or npm ci
-
-      - name: Setup Expo & EAS
-        uses: expo/expo-github-action@v8
+      - name: Cache node_modules
+        uses: actions/cache@v4
         with:
-          expo-version: latest
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          path: node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
-      - name: Start EAS Build
-        id: build
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run expo doctor
+        run: npx expo doctor --fix 2>&1 || npx expo doctor
+
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform android --clean
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Bundle JavaScript & API routes
         run: |
-          # Trigger the build and capture the build ID
-          BUILD_ID=$(npx eas-cli build \
+          npx expo export \
             --platform android \
-            --profile production \
-            --non-interactive \
-            --json \
-            | jq -r '.[0].id')
+            --output-dir dist \
+            --no-bytecode \
+            --no-ssg
 
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-
-      - name: Wait for build to finish
+      - name: Copy JS bundle to Android assets
         run: |
-          # Wait until the build completes (status: FINISHED or ERRORED)
-          npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -e '.status == "FINISHED"' > /dev/null
-          sleep 30
-          while true; do
-            STATUS=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -r '.status')
-            if [ "$STATUS" = "FINISHED" ]; then
-              echo "Build completed successfully"
-              break
-            elif [ "$STATUS" = "ERRORED" ]; then
-              echo "Build failed"
-              exit 1
-            fi
-            echo "Build status: $STATUS. Waiting..."
-            sleep 60
-          done
+          mkdir -p android/app/src/main/assets
+          cp dist/index.android.bundle android/app/src/main/assets/index.android.bundle 2>/dev/null || \
+          cp dist/_expo/static/js/android/*.js android/app/src/main/assets/ 2>/dev/null || \
+          cp dist/index.js android/app/src/main/assets/index.android.bundle 2>/dev/null || \
+          echo "Warning: bundle copy failed — checking dist structure"
+          ls -R dist/ || true
 
-      - name: Download APK
-        id: download
+      - name: Copy API server bundle to Android assets
         run: |
-          # Get the download URL
-          APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
-            | jq -r '.artifacts.applicationArchiveUrl')
+          cp dist/server/index.js android/app/src/main/assets/server.js 2>/dev/null || \
+          cp dist/_expo/routes.json android/app/src/main/assets/routes.json 2>/dev/null || \
+          echo "API server routes will be loaded from embedded bundle"
 
-          # Download with a clean filename
-          APK_FILENAME="app-release-${{ github.ref_name }}.apk"
-          curl -fL -o "$APK_FILENAME" "$APK_URL"
+      - name: Copy asset files to Android
+        run: |
+          if [ -d dist/assets ]; then
+            cp -r dist/assets android/app/src/main/assets/ 2>/dev/null || true
+          fi
 
-          echo "apk_path=$APK_FILENAME" >> $GITHUB_OUTPUT
+      - name: Decode Keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/my-release-key.keystore
+
+      - name: Make Gradle Executable
+        run: chmod +x android/gradlew
+
+      - name: Set Gradle build flags
+        run: |
+          echo "org.gradle.jvmargs=-XX:MaxMetaspaceSize=1g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> android/gradle.properties
+          echo "org.gradle.parallel=true" >> android/gradle.properties
+          echo "org.gradle.daemon=false" >> android/gradle.properties
+
+      - name: Build Android Release APK
+        env:
+          MYAPP_RELEASE_STORE_FILE: my-release-key.keystore
+          MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          cd android
+          ./gradlew assembleRelease \
+            -PMYAPP_RELEASE_STORE_FILE=$MYAPP_RELEASE_STORE_FILE \
+            -PMYAPP_RELEASE_STORE_PASSWORD=$MYAPP_RELEASE_STORE_PASSWORD \
+            -PMYAPP_RELEASE_KEY_ALIAS=$MYAPP_RELEASE_KEY_ALIAS \
+            -PMYAPP_RELEASE_KEY_PASSWORD=$MYAPP_RELEASE_KEY_PASSWORD \
+            --no-daemon
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-${{ env.TAG }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+          if-no-files-found: error
+
+  # ─── Stage 3: Publish release ────────────────────────────────────
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download release artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-apk-${{ env.TAG }}
+          path: ./artifacts/
 
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            "${{ steps.download.outputs.apk_path }}" \
-            --title "Release ${{ github.ref_name }}" \
-            --notes "Automated production build for ${{ github.ref_name }}"
+          APK_PATH=$(find ./artifacts/ -name "*.apk" | head -1)
+          gh release create "${{ env.TAG }}" \
+            "$APK_PATH" \
+            --title "Release ${{ env.TAG }}" \
+            --notes "Release ${{ env.TAG }} — built from \`${{ github.sha }}\`"

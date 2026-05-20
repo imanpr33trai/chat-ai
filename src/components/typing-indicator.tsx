@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react'
-import { View, Animated, Easing, StyleProp, ViewStyle } from 'react-native'
+import React, { useEffect, useRef } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
+import { Animated, Easing, View } from 'react-native';
 
-import { useTheme } from '@/hooks/use-theme'
+import { useTheme } from '@/hooks/use-theme';
 
 type Props = {
   style?: StyleProp<ViewStyle>

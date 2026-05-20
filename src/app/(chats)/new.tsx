@@ -1,11 +1,11 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View, ActivityIndicator } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 
 import { useChat } from "@/hooks/use-chat-store";
-import { useTheme } from "@/hooks/use-theme";
 import { useModels } from "@/hooks/use-models";
+import { useTheme } from "@/hooks/use-theme";
 
 export default function NewChatScreen() {
   const theme = useTheme();
@@ -25,7 +25,7 @@ export default function NewChatScreen() {
     if (message.trim()) {
       sendMessage(id, message.trim());
     }
-    router.replace(`/chat/${id}` as any);
+    router.replace(`/chat/${id}`);
   };
 
   return (

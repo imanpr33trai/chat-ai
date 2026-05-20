@@ -1,19 +1,20 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
-import {
-  View,
-  TextInput,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  ScrollView,
-  Modal,
-} from 'react-native'
 import * as Haptics from 'expo-haptics'
-import Animated, { FadeIn, FadeOut, Layout } from 'react-native-reanimated'
+import * as ImagePicker from 'expo-image-picker'
+import React, { useEffect, useRef, useState } from 'react'
+import {
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  TextInput,
+  View
+} from 'react-native'
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated'
 
-import { useTheme } from '@/hooks/use-theme'
 import type { ReplyTo } from '@/hooks/use-chat-store'
+import { useTheme } from '@/hooks/use-theme'
 
 // ─── Slash Commands ─────────────────────────────────────────────
 
@@ -115,7 +116,7 @@ function FormatToolbar({
     <Animated.View
       entering={FadeIn.duration(200)}
       exiting={FadeOut.duration(150)}
-      layout={Layout.springify()}
+      layout={LinearTransition.springify()}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -133,7 +134,7 @@ function FormatToolbar({
       {FORMAT_BUTTONS.map((btn) => (
         <Pressable
           key={btn.label}
-          onPress={() => onFormat(btn.wrap[0], btn.wrap[1])}
+          onPress={() =>{  onFormat(btn.wrap[0], btn.wrap[1]); }}
           style={({ pressed }) => ({
             paddingHorizontal: 12,
             paddingVertical: 6,
@@ -275,7 +276,7 @@ function SlashCommandPicker({
 // ─── Main Component ─────────────────────────────────────────────
 
 type ChatInputProps = {
-  onSend: (text: string, replyTo?: ReplyTo) => void
+  onSend: (text: string, replyTo?: ReplyTo, images?: string[]) => void
   onStop?: () => void
   onSaveDraft?: (draft: string) => void
   initialDraft?: string
@@ -299,9 +300,26 @@ export function ChatInput({
   const [showFormatToolbar, setShowFormatToolbar] = useState(false)
   const [showSlashPicker, setShowSlashPicker] = useState(false)
   const [slashFilter, setSlashFilter] = useState('')
+  const [images, setImages] = useState<string[]>([])
   const theme = useTheme()
   const inputRef = useRef<TextInput>(null)
   const slashStartIndex = useRef<number>(0)
+
+  const pickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      base64: true,
+    })
+    if (!result.canceled && result.assets[0]?.base64) {
+      const uri = `data:${result.assets[0].mimeType ?? 'image/jpeg'};base64,${result.assets[0].base64}`
+      setImages((prev) => [...prev, uri])
+    }
+  }
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index))
+  }
 
   // Auto-save draft
   useEffect(() => {
@@ -309,7 +327,7 @@ export function ChatInput({
       const timer = setTimeout(() => {
         onSaveDraft(text)
       }, 500)
-      return () => clearTimeout(timer)
+      return () =>{  clearTimeout(timer); }
     }
   }, [text, onSaveDraft])
 
@@ -359,8 +377,9 @@ export function ChatInput({
       }
     }
 
-    onSend(finalText, replyTo)
+    onSend(finalText, replyTo, images.length > 0 ? images : undefined)
     setText('')
+    setImages([])
     setShowSlashPicker(false)
     setSlashFilter('')
   }
@@ -440,7 +459,7 @@ export function ChatInput({
         }}
       >
         <Pressable
-          onPress={() => setShowFormatToolbar(!showFormatToolbar)}
+          onPress={() =>{  setShowFormatToolbar(!showFormatToolbar); }}
           style={({ pressed }) => ({
             opacity: pressed ? 0.6 : 0.5,
           })}
@@ -466,6 +485,42 @@ export function ChatInput({
           backgroundColor: theme.background,
         }}
       >
+        {/* Image previews row */}
+        {images.length > 0 && (
+          <View
+            style={{
+              flexDirection: 'row',
+              paddingHorizontal: 4,
+              paddingBottom: 4,
+              gap: 4,
+            }}
+          >
+            {images.map((uri, idx) => (
+              <View key={idx} style={{ position: 'relative' }}>
+                <Image
+                  source={{ uri }}
+                  style={{ width: 40, height: 40, borderRadius: 6 }}
+                />
+                <Pressable
+                  onPress={() => removeImage(idx)}
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    width: 16,
+                    height: 16,
+                    borderRadius: 8,
+                    backgroundColor: '#FF453A',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: 700 }}>✕</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
         {/* Text field */}
         <View
           style={{
@@ -480,6 +535,17 @@ export function ChatInput({
             marginRight: 8,
           }}
         >
+          {/* Image picker button */}
+          <Pressable
+            onPress={pickImage}
+            style={({ pressed }) => ({
+              marginRight: 6,
+              marginBottom: 2,
+              opacity: pressed ? 0.6 : 0.5,
+            })}
+          >
+            <Text style={{ fontSize: 20 }}>📷</Text>
+          </Pressable>
           <TextInput
             ref={inputRef}
             value={text}

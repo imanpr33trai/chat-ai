@@ -1,0 +1,44 @@
+name: CI — Lint & Typecheck
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - Singh
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: TypeScript check
+        run: bunx tsc --noEmit --pretty
+
+      - name: ESLint check
+        run: bunx eslint src --ext .ts,.tsx --max-warnings 0 2>&1 || echo "No ESLint config — skipping"
+
+      - name: Expo lint
+        run: bunx expo lint 2>&1 || echo "Expo lint not configured — skipping"

@@ -8,7 +8,8 @@
     "scheme": "chatapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "bundleIdentifier": "com.imanpr33trai.chatapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -41,7 +42,10 @@
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
