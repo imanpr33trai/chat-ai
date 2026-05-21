@@ -25,7 +25,11 @@ export function useModels() {
 
     async function load() {
       try {
-        const res = await fetch('/api/models')
+        // Use proxy directly when available (native), otherwise Expo API route (dev SSR)
+        const modelsEndpoint = process.env.EXPO_PUBLIC_API_URL 
+          ? `${process.env.EXPO_PUBLIC_API_URL}/v1/models` 
+          : '/api/models';
+        const res = await fetch(modelsEndpoint)
         const data = await res.json()
 
         if (data.error) {

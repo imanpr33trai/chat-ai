@@ -1,26 +1,40 @@
-import { Stack } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import { Stack } from 'expo-router'
+import { useRouter } from 'expo-router'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View
+} from 'react-native'
+import Animated, { FadeInUp } from 'react-native-reanimated'
 
-import { useChat } from '@/hooks/use-chat-store';
-import { useModels } from '@/hooks/use-models';
-import { useTheme } from '@/hooks/use-theme';
-import { clearApiKey, loadApiKey, setApiKey } from '@/lib/api-key';
-import { clearModelCache, mergeIntoCache, readModelCache, writeModelCache } from '@/lib/model-cache';
+import { useChat } from '@/hooks/use-chat-store'
+import { useModels } from '@/hooks/use-models'
+import { useTheme } from '@/hooks/use-theme'
+import { clearApiKey, loadApiKey, setApiKey } from '@/lib/api-key'
+import {
+  clearModelCache,
+  mergeIntoCache,
+  readModelCache,
+  writeModelCache
+} from '@/lib/model-cache'
 
 function SettingsRow({
   title,
   subtitle,
   right,
-  onPress,
+  onPress
 }: {
-  title: string;
-  subtitle?: string;
-  right?: React.ReactNode;
-  onPress?: () => void;
+  title: string
+  subtitle?: string
+  right?: React.ReactNode
+  onPress?: () => void
 }) {
-  const theme = useTheme();
+  const theme = useTheme()
   return (
     <Pressable
       onPress={onPress}
@@ -30,27 +44,35 @@ function SettingsRow({
         alignItems: 'center',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
+        backgroundColor: pressed
+          ? theme.backgroundSelected
+          : theme.backgroundElement
       })}
     >
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: 16, color: theme.text }}>{title}</Text>
         {subtitle && (
-          <Text style={{ fontSize: 13, color: theme.textSecondary, marginTop: 1 }}>
+          <Text
+            style={{ fontSize: 13, color: theme.textSecondary, marginTop: 1 }}
+          >
             {subtitle}
           </Text>
         )}
       </View>
       {right && <View style={{ marginLeft: 8 }}>{right}</View>}
       {onPress && (
-        <Text style={{ fontSize: 16, color: theme.textSecondary, marginLeft: 8 }}>›</Text>
+        <Text
+          style={{ fontSize: 16, color: theme.textSecondary, marginLeft: 8 }}
+        >
+          ›
+        </Text>
       )}
     </Pressable>
-  );
+  )
 }
 
 function SectionHeader({ title }: { title: string }) {
-  const theme = useTheme();
+  const theme = useTheme()
   return (
     <Text
       style={{
@@ -61,27 +83,27 @@ function SectionHeader({ title }: { title: string }) {
         paddingHorizontal: 16,
         paddingTop: 24,
         paddingBottom: 8,
-        letterSpacing: 0.5,
+        letterSpacing: 0.5
       }}
     >
       {title}
     </Text>
-  );
+  )
 }
 
 function ModelRadioItem({
   name,
   subtitle,
   isSelected,
-  onPress,
+  onPress
 }: {
-  id: string;
-  name: string;
-  subtitle: string;
-  isSelected: boolean;
-  onPress: () => void;
+  id: string
+  name: string
+  subtitle: string
+  isSelected: boolean
+  onPress: () => void
 }) {
-  const theme = useTheme();
+  const theme = useTheme()
   return (
     <Animated.View entering={FadeInUp.duration(300)}>
       <Pressable
@@ -91,7 +113,7 @@ function ModelRadioItem({
           alignItems: 'center',
           paddingHorizontal: 16,
           paddingVertical: 10,
-          backgroundColor: pressed ? theme.backgroundSelected : 'transparent',
+          backgroundColor: pressed ? theme.backgroundSelected : 'transparent'
         })}
       >
         <View
@@ -103,7 +125,7 @@ function ModelRadioItem({
             borderColor: isSelected ? '#007AFF' : theme.textSecondary,
             justifyContent: 'center',
             alignItems: 'center',
-            marginRight: 12,
+            marginRight: 12
           }}
         >
           {isSelected && (
@@ -112,147 +134,162 @@ function ModelRadioItem({
                 width: 8,
                 height: 8,
                 borderRadius: 4,
-                backgroundColor: '#007AFF',
+                backgroundColor: '#007AFF'
               }}
             />
           )}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 15, color: theme.text }}>{name}</Text>
-          <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 1 }}>
+          <Text
+            style={{ fontSize: 12, color: theme.textSecondary, marginTop: 1 }}
+          >
             {subtitle}
           </Text>
         </View>
       </Pressable>
     </Animated.View>
-  );
+  )
 }
 
 export default function SettingsScreen() {
-  const theme = useTheme();
-  const { state, setDefaultModel } = useChat();
-  const { models, allModels, loading, error } = useModels();
+  const theme = useTheme()
+  const router = useRouter()
+  const { state, setDefaultModel } = useChat()
+  const { models, allModels, loading, error } = useModels()
 
   // API key state
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [savedKey, setSavedKey] = useState('');
-  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('')
+  const [savedKey, setSavedKey] = useState('')
+  const [showKeyInput, setShowKeyInput] = useState(false)
 
   useEffect(() => {
-    (async () => {
-      const stored = await loadApiKey();
+    ;(async () => {
+      const stored = await loadApiKey()
       if (stored) {
-        setSavedKey(stored);
-        setApiKeyInput(stored);
+        setSavedKey(stored)
+        setApiKeyInput(stored)
       }
-    })();
-  }, []);
+    })()
+  }, [])
 
   const handleSaveApiKey = async () => {
-    const trimmed = apiKeyInput.trim();
+    const trimmed = apiKeyInput.trim()
     if (!trimmed) {
-      Alert.alert('Error', 'API key cannot be empty');
-      return;
+      Alert.alert('Error', 'API key cannot be empty')
+      return
     }
-    await setApiKey(trimmed);
-    setSavedKey(trimmed);
-    setShowKeyInput(false);
-  };
+    await setApiKey(trimmed)
+    setSavedKey(trimmed)
+    setShowKeyInput(false)
+  }
 
   const handleClearApiKey = async () => {
-    await clearApiKey();
-    setSavedKey('');
-    setApiKeyInput('');
-    setShowKeyInput(false);
-  };
+    await clearApiKey()
+    setSavedKey('')
+    setApiKeyInput('')
+    setShowKeyInput(false)
+  }
 
   // Per-model verification state: modelId → 'idle' | 'verifying' | 'available' | 'unavailable' | 'timeout'
-  const [verifyState, setVerifyState] = useState<Record<string, string>>({});
+  const [verifyState, setVerifyState] = useState<Record<string, string>>({})
   // Elapsed time for currently verifying models
-  const [elapsed, setElapsed] = useState<Record<string, number>>({});
-  const timersRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+  const [elapsed, setElapsed] = useState<Record<string, number>>({})
+  const timersRef = useRef<Record<string, ReturnType<typeof setInterval>>>({})
 
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
-      Object.values(timersRef.current).forEach(clearInterval);
-    };
-  }, []);
+      Object.values(timersRef.current).forEach(clearInterval)
+    }
+  }, [])
 
   const verifyModel = useCallback(async (modelId: string) => {
-    setVerifyState((prev) => ({ ...prev, [modelId]: 'verifying' }));
-    setElapsed((prev) => ({ ...prev, [modelId]: 0 }));
+    setVerifyState(prev => ({ ...prev, [modelId]: 'verifying' }))
+    setElapsed(prev => ({ ...prev, [modelId]: 0 }))
 
     // Start elapsed timer
     const timer = setInterval(() => {
-      setElapsed((prev) => ({ ...prev, [modelId]: (prev[modelId] ?? 0) + 1 }));
-    }, 1000);
-    timersRef.current[modelId] = timer;
+      setElapsed(prev => ({ ...prev, [modelId]: (prev[modelId] ?? 0) + 1 }))
+    }, 1000)
+    timersRef.current[modelId] = timer
 
     try {
       // 3-minute timeout
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 180_000);
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 180_000)
 
-      const res = await fetch('/api/models/check', {
+      // Use proxy directly when available (native), otherwise Expo API route (dev SSR)
+      const modelsCheckEndpoint = process.env.EXPO_PUBLIC_API_URL
+        ? `${process.env.EXPO_PUBLIC_API_URL}/v1/models/check`
+        : '/api/models/check'
+      const res = await fetch(modelsCheckEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: modelId, timeout: 160_000 }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
 
-      const data = await res.json();
-      const isAvailable = data.available === true;
+      const data = await res.json()
+      const isAvailable = data.available === true
 
       // Update cache
-      mergeIntoCache({ [modelId]: isAvailable });
+      mergeIntoCache({ [modelId]: isAvailable })
 
-      setVerifyState((prev) => ({ ...prev, [modelId]: isAvailable ? 'available' : 'unavailable' }));
+      setVerifyState(prev => ({
+        ...prev,
+        [modelId]: isAvailable ? 'available' : 'unavailable'
+      }))
     } catch {
       // Timeout or network error → mark unavailable
-      mergeIntoCache({ [modelId]: false });
-      setVerifyState((prev) => ({ ...prev, [modelId]: 'timeout' }));
+      mergeIntoCache({ [modelId]: false })
+      setVerifyState(prev => ({ ...prev, [modelId]: 'timeout' }))
     } finally {
-      clearInterval(timersRef.current[modelId]);
-      delete timersRef.current[modelId];
+      clearInterval(timersRef.current[modelId])
+      delete timersRef.current[modelId]
     }
-  }, []);
+  }, [])
 
   const resetModel = useCallback((modelId: string) => {
-    clearInterval(timersRef.current[modelId]);
-    delete timersRef.current[modelId];
+    clearInterval(timersRef.current[modelId])
+    delete timersRef.current[modelId]
     // Remove from cache by writing without it
-    const { [modelId]: _, ...rest } = readModelCache()?.models ?? {};
-    writeModelCache(Object.fromEntries(Object.entries(rest).filter(([k]) => k !== modelId)));
-    setVerifyState((prev) => ({ ...prev, [modelId]: 'idle' }));
-    setElapsed((prev) => {
-      const next = { ...prev };
-      delete next[modelId];
-      return next;
-    });
-  }, []);
+    const { [modelId]: _, ...rest } = readModelCache()?.models ?? {}
+    writeModelCache(
+      Object.fromEntries(Object.entries(rest).filter(([k]) => k !== modelId))
+    )
+    setVerifyState(prev => ({ ...prev, [modelId]: 'idle' }))
+    setElapsed(prev => {
+      const next = { ...prev }
+      delete next[modelId]
+      return next
+    })
+  }, [])
 
   // For the All Models section, merge cached availability into each model
   // Since allModels from useModels already includes cache, we just need to
   // override with verifyState when it's non-idle
-  const getModelStatus = (modelId: string, cachedAvailable: boolean | null): string => {
-    const vs = verifyState[modelId];
-    if (vs && vs !== 'idle') return vs;
-    if (cachedAvailable === true) return 'available';
-    if (cachedAvailable === false) return 'unavailable';
-    return 'idle';
-  };
+  const getModelStatus = (
+    modelId: string,
+    cachedAvailable: boolean | null
+  ): string => {
+    const vs = verifyState[modelId]
+    if (vs && vs !== 'idle') return vs
+    if (cachedAvailable === true) return 'available'
+    if (cachedAvailable === false) return 'unavailable'
+    return 'idle'
+  }
 
   const availableCount = (allModels ?? models).filter(
-    (m) => getModelStatus(m.id, m.available) === 'available',
-  ).length;
+    m => getModelStatus(m.id, m.available) === 'available'
+  ).length
   const unavailableCount = (allModels ?? models).filter(
-    (m) => getModelStatus(m.id, m.available) === 'unavailable',
-  ).length;
+    m => getModelStatus(m.id, m.available) === 'unavailable'
+  ).length
   const idleCount = (allModels ?? models).filter(
-    (m) => getModelStatus(m.id, m.available) === 'idle',
-  ).length;
+    m => getModelStatus(m.id, m.available) === 'idle'
+  ).length
 
   const sections = [
     {
@@ -269,21 +306,27 @@ export default function SettingsScreen() {
                     Loading models...
                   </Text>
                 </View>
-              );
+              )
             }
             if (error) {
               return (
                 <View style={{ padding: 16, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 14, color: '#FF453A', textAlign: 'center' }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      color: '#FF453A',
+                      textAlign: 'center'
+                    }}
+                  >
                     {error}
                   </Text>
                 </View>
-              );
+              )
             }
             return (
               <View>
-                {models.map((model) => {
-                  const isSelected = state.defaultModel === model.id;
+                {models.map(model => {
+                  const isSelected = state.defaultModel === model.id
                   return (
                     <ModelRadioItem
                       key={model.id}
@@ -293,13 +336,13 @@ export default function SettingsScreen() {
                       isSelected={isSelected}
                       onPress={() => setDefaultModel(model.id)}
                     />
-                  );
+                  )
                 })}
               </View>
-            );
-          },
-        },
-      ],
+            )
+          }
+        }
+      ]
     },
     {
       title: 'API Key',
@@ -324,7 +367,7 @@ export default function SettingsScreen() {
                       borderRadius: 8,
                       paddingHorizontal: 10,
                       paddingVertical: 8,
-                      marginBottom: 8,
+                      marginBottom: 8
                     }}
                   />
                   <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -336,10 +379,14 @@ export default function SettingsScreen() {
                         borderRadius: 8,
                         backgroundColor: '#007AFF',
                         alignItems: 'center',
-                        opacity: pressed ? 0.7 : 1,
+                        opacity: pressed ? 0.7 : 1
                       })}
                     >
-                      <Text style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}>Save</Text>
+                      <Text
+                        style={{ color: '#fff', fontSize: 14, fontWeight: 600 }}
+                      >
+                        Save
+                      </Text>
                     </Pressable>
                     <Pressable
                       onPress={() => setShowKeyInput(false)}
@@ -347,10 +394,14 @@ export default function SettingsScreen() {
                         paddingVertical: 8,
                         paddingHorizontal: 16,
                         borderRadius: 8,
-                        opacity: pressed ? 0.7 : 1,
+                        opacity: pressed ? 0.7 : 1
                       })}
                     >
-                      <Text style={{ color: theme.textSecondary, fontSize: 14 }}>Cancel</Text>
+                      <Text
+                        style={{ color: theme.textSecondary, fontSize: 14 }}
+                      >
+                        Cancel
+                      </Text>
                     </Pressable>
                   </View>
                 </View>
@@ -361,7 +412,13 @@ export default function SettingsScreen() {
                       ? `Key: ${savedKey.slice(0, 8)}...${savedKey.slice(-4)}`
                       : 'No API key set'}
                   </Text>
-                  <Text style={{ fontSize: 12, color: theme.textSecondary, marginTop: 2 }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: theme.textSecondary,
+                      marginTop: 2
+                    }}
+                  >
                     Used for direct NVIDIA API calls from the app
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
@@ -372,7 +429,7 @@ export default function SettingsScreen() {
                         paddingHorizontal: 12,
                         borderRadius: 6,
                         backgroundColor: theme.backgroundElement,
-                        opacity: pressed ? 0.7 : 1,
+                        opacity: pressed ? 0.7 : 1
                       })}
                     >
                       <Text style={{ fontSize: 13, color: '#007AFF' }}>
@@ -386,19 +443,21 @@ export default function SettingsScreen() {
                           paddingVertical: 6,
                           paddingHorizontal: 12,
                           borderRadius: 6,
-                          opacity: pressed ? 0.7 : 1,
+                          opacity: pressed ? 0.7 : 1
                         })}
                       >
-                        <Text style={{ fontSize: 13, color: '#FF453A' }}>Remove</Text>
+                        <Text style={{ fontSize: 13, color: '#FF453A' }}>
+                          Remove
+                        </Text>
                       </Pressable>
                     )}
                   </View>
                 </View>
               )}
             </View>
-          ),
-        },
-      ],
+          )
+        }
+      ]
     },
     {
       title: `Models (${availableCount} ok, ${unavailableCount} bad, ${idleCount} unchecked)`,
@@ -406,7 +465,7 @@ export default function SettingsScreen() {
         {
           key: 'list',
           render: () => {
-            const target = allModels ?? models;
+            const target = allModels ?? models
             if (target.length === 0 && !loading) {
               return (
                 <View style={{ padding: 16 }}>
@@ -414,23 +473,26 @@ export default function SettingsScreen() {
                     No models loaded.
                   </Text>
                 </View>
-              );
+              )
             }
             return (
               <View>
                 {target.map((model, idx) => {
-                  const status = getModelStatus(model.id, model.available);
-                  const isVerifying = status === 'verifying';
-                  const elapsedSec = elapsed[model.id] ?? 0;
+                  const status = getModelStatus(model.id, model.available)
+                  const isVerifying = status === 'verifying'
+                  const elapsedSec = elapsed[model.id] ?? 0
 
                   return (
-                    <Animated.View key={model.id} entering={FadeInUp.delay(idx % 20 * 20).duration(200)}>
+                    <Animated.View
+                      key={model.id}
+                      entering={FadeInUp.delay((idx % 20) * 20).duration(200)}
+                    >
                       <View
                         style={{
                           flexDirection: 'row',
                           alignItems: 'center',
                           paddingHorizontal: 16,
-                          paddingVertical: 10,
+                          paddingVertical: 10
                         }}
                       >
                         {/* Status dot */}
@@ -447,11 +509,14 @@ export default function SettingsScreen() {
                                   ? '#FF453A'
                                   : isVerifying
                                     ? '#FF9F0A'
-                                    : '#8E8E93',
+                                    : '#8E8E93'
                           }}
                         />
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, color: theme.text }} numberOfLines={1}>
+                          <Text
+                            style={{ fontSize: 13, color: theme.text }}
+                            numberOfLines={1}
+                          >
                             {model.name}
                           </Text>
                           <Text
@@ -470,14 +535,24 @@ export default function SettingsScreen() {
                               paddingHorizontal: 10,
                               paddingVertical: 4,
                               borderRadius: 6,
-                              backgroundColor: pressed ? theme.backgroundSelected : theme.backgroundElement,
+                              backgroundColor: pressed
+                                ? theme.backgroundSelected
+                                : theme.backgroundElement
                             })}
                           >
-                            <Text style={{ fontSize: 12, color: '#007AFF' }}>Verify</Text>
+                            <Text style={{ fontSize: 12, color: '#007AFF' }}>
+                              Verify
+                            </Text>
                           </Pressable>
                         )}
                         {isVerifying && (
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 4
+                            }}
+                          >
                             <ActivityIndicator size="small" color="#FF9F0A" />
                             <Text style={{ fontSize: 11, color: '#FF9F0A' }}>
                               {elapsedSec}s
@@ -491,10 +566,12 @@ export default function SettingsScreen() {
                               paddingHorizontal: 10,
                               paddingVertical: 4,
                               borderRadius: 6,
-                              opacity: pressed ? 0.6 : 1,
+                              opacity: pressed ? 0.6 : 1
                             })}
                           >
-                            <Text style={{ fontSize: 12, color: '#30D158' }}>Available</Text>
+                            <Text style={{ fontSize: 12, color: '#30D158' }}>
+                              Available
+                            </Text>
                           </Pressable>
                         )}
                         {status === 'unavailable' && (
@@ -504,10 +581,12 @@ export default function SettingsScreen() {
                               paddingHorizontal: 10,
                               paddingVertical: 4,
                               borderRadius: 6,
-                              opacity: pressed ? 0.6 : 1,
+                              opacity: pressed ? 0.6 : 1
                             })}
                           >
-                            <Text style={{ fontSize: 12, color: '#FF453A' }}>Unavailable</Text>
+                            <Text style={{ fontSize: 12, color: '#FF453A' }}>
+                              Unavailable
+                            </Text>
                           </Pressable>
                         )}
                         {status === 'timeout' && (
@@ -517,10 +596,12 @@ export default function SettingsScreen() {
                               paddingHorizontal: 10,
                               paddingVertical: 4,
                               borderRadius: 6,
-                              opacity: pressed ? 0.6 : 1,
+                              opacity: pressed ? 0.6 : 1
                             })}
                           >
-                            <Text style={{ fontSize: 12, color: '#FF453A' }}>Timeout</Text>
+                            <Text style={{ fontSize: 12, color: '#FF453A' }}>
+                              Timeout
+                            </Text>
                           </Pressable>
                         )}
                       </View>
@@ -531,12 +612,12 @@ export default function SettingsScreen() {
                           style={{
                             height: 0.5,
                             backgroundColor: theme.backgroundSelected,
-                            marginLeft: 16,
+                            marginLeft: 16
                           }}
                         />
                       )}
                     </Animated.View>
-                  );
+                  )
                 })}
                 {loading && (
                   <View style={{ padding: 16, alignItems: 'center' }}>
@@ -544,10 +625,10 @@ export default function SettingsScreen() {
                   </View>
                 )}
               </View>
-            );
-          },
-        },
-      ],
+            )
+          }
+        }
+      ]
     },
     {
       title: 'Actions',
@@ -557,48 +638,48 @@ export default function SettingsScreen() {
           render: () => (
             <Pressable
               onPress={async () => {
-                const target = allModels ?? models;
+                const target = allModels ?? models
                 for (const model of target) {
-                  const status = getModelStatus(model.id, model.available);
+                  const status = getModelStatus(model.id, model.available)
                   if (status === 'idle' || status === 'timeout') {
-                    await verifyModel(model.id);
+                    await verifyModel(model.id)
                   }
                 }
               }}
               style={({ pressed }) => ({
                 paddingHorizontal: 16,
                 paddingVertical: 12,
-                opacity: pressed ? 0.7 : 1,
+                opacity: pressed ? 0.7 : 1
               })}
             >
               <Text style={{ fontSize: 16, color: '#007AFF', fontWeight: 500 }}>
                 Validate All Unchecked
               </Text>
             </Pressable>
-          ),
+          )
         },
         {
           key: 'clear_cache',
           render: () => (
             <Pressable
               onPress={() => {
-                clearModelCache();
-                setVerifyState({});
-                setElapsed({});
+                clearModelCache()
+                setVerifyState({})
+                setElapsed({})
               }}
               style={({ pressed }) => ({
                 paddingHorizontal: 16,
                 paddingVertical: 12,
-                opacity: pressed ? 0.7 : 1,
+                opacity: pressed ? 0.7 : 1
               })}
             >
               <Text style={{ fontSize: 16, color: '#FF453A', fontWeight: 500 }}>
                 Clear Validation Cache
               </Text>
             </Pressable>
-          ),
-        },
-      ],
+          )
+        }
+      ]
     },
     {
       title: 'Appearance',
@@ -617,7 +698,7 @@ export default function SettingsScreen() {
                     borderRadius: 14,
                     backgroundColor: '#34C759',
                     justifyContent: 'center',
-                    paddingHorizontal: 3,
+                    paddingHorizontal: 3
                   }}
                 >
                   <View
@@ -626,15 +707,15 @@ export default function SettingsScreen() {
                       height: 22,
                       borderRadius: 11,
                       backgroundColor: '#fff',
-                      alignSelf: 'flex-end',
+                      alignSelf: 'flex-end'
                     }}
                   />
                 </View>
               }
             />
-          ),
-        },
-      ],
+          )
+        }
+      ]
     },
     {
       title: 'About',
@@ -642,12 +723,15 @@ export default function SettingsScreen() {
         {
           key: 'version',
           render: () => (
-            <SettingsRow title="Version" right={<Text style={{ color: theme.textSecondary }}>1.0.0</Text>} />
-          ),
-        },
-      ],
-    },
-  ];
+            <SettingsRow
+              title="Version"
+              right={<Text style={{ color: theme.textSecondary }}>1.0.0</Text>}
+            />
+          )
+        }
+      ]
+    }
+  ]
 
   return (
     <>
@@ -657,7 +741,7 @@ export default function SettingsScreen() {
       >
         <Stack.Screen.Title large>Settings</Stack.Screen.Title>
 
-        {sections.map((section) => (
+        {sections.map(section => (
           <View key={section.title}>
             <SectionHeader title={section.title} />
             <View
@@ -666,10 +750,10 @@ export default function SettingsScreen() {
                 marginHorizontal: 16,
                 borderRadius: 12,
                 borderCurve: 'continuous',
-                overflow: 'hidden',
+                overflow: 'hidden'
               }}
             >
-              {section.data.map((item) => (
+              {section.data.map(item => (
                 <View key={item.key}>{item.render()}</View>
               ))}
             </View>
@@ -679,5 +763,5 @@ export default function SettingsScreen() {
         <View style={{ height: 60 }} />
       </ScrollView>
     </>
-  );
+  )
 }

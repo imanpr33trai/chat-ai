@@ -28,10 +28,13 @@ interface StreamOptions {
 
 import { getApiKey } from './api-key';
 
-const API_BASE =
-  typeof window !== "undefined"
-    ? ""
-    : process.env.EXPO_PUBLIC_API_URL || "http://localhost:8081";
+// In production (native APK), the app has no API route server running locally.
+// Send requests directly to the proxy URL at the OpenAI-compatible endpoint.
+// In dev mode (Expo web SSR), empty string means same-origin works, hitting the Expo API route.
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
+// If we have a proxy URL, use the OpenAI-compatible endpoint directly
+// to skip the Expo API route layer (which only exists on the SSR server).
+const CHAT_ENDPOINT = API_BASE ? `${API_BASE}/v1/chat/completions` : "/api/chat";
 
 /**
  * POST to /api/chat with stream:true, parse SSE chunks, and call callbacks.
@@ -56,7 +59,7 @@ export function startStream(
   (async () => {
     try {
       const apiKey = getApiKey();
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await fetch(CHAT_ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
