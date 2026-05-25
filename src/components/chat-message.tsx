@@ -654,7 +654,7 @@ export function ChatMessageInner({
   const [showReactions, setShowReactions] = useState(false)
   // const pressTimer = useRef<NodeJS.Timeout | null>(null)
 
-  const bubbleColor = isUser ? '#007AFF' : theme.backgroundElement
+  const bubbleColor = isUser ? '#007AFF' : theme.highlight
   const textColor = isUser ? '#fff' : theme.text
   const align = isUser ? 'flex-end' : 'flex-start'
 

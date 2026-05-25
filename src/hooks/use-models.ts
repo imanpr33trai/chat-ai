@@ -9,6 +9,8 @@ export type RemoteModel = {
   available: boolean | null
 }
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || ""
+
 export function useModels() {
   const [models, setModels] = useState<RemoteModel[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,11 +27,7 @@ export function useModels() {
 
     async function load() {
       try {
-        // Use proxy directly when available (native), otherwise Expo API route (dev SSR)
-        const modelsEndpoint = process.env.EXPO_PUBLIC_API_URL 
-          ? `${process.env.EXPO_PUBLIC_API_URL}/v1/models` 
-          : '/api/models';
-        const res = await fetch(modelsEndpoint)
+        const res = await fetch(`${API_BASE}/api/models`)
         const data = await res.json()
 
         if (data.error) {

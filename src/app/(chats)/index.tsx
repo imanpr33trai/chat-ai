@@ -60,8 +60,8 @@ function ModelSelectionModal({
             paddingHorizontal: 16,
             paddingVertical: 14,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.metallicBorder,
-            backgroundColor: theme.metallicLight,
+            borderBottomColor: theme.separator,
+            backgroundColor: theme.highlight,
           }}
         >
           <Pressable onPress={onClose}>
@@ -136,11 +136,11 @@ function ModelSelectionModal({
                     paddingVertical: 14,
                     borderRadius: 8,
                     backgroundColor: isSelected
-                      ? theme.metallicMid
-                      : theme.metallicLight,
+                      ? theme.separator
+                      : theme.highlight,
                     marginBottom: 8,
                     borderWidth: 1,
-                    borderColor: isSelected ? '#007AFF' : theme.metallicBorder,
+                    borderColor: isSelected ? '#007AFF' : theme.separator,
                     opacity: 1,
                   }}
                 >
@@ -186,7 +186,7 @@ function ModelSelectionModal({
                           paddingHorizontal: 6,
                           paddingVertical: 2,
                           borderRadius: 4,
-                          backgroundColor: theme.metallicMid,
+                          backgroundColor: theme.separator,
                         }}
                       >
                         <Text
@@ -276,12 +276,12 @@ export default function ChatsScreen() {
                 width: 64,
                 height: 64,
                 borderRadius: 32,
-                backgroundColor: theme.metallicLight,
+                backgroundColor: theme.highlight,
                 justifyContent: 'center',
                 alignItems: 'center',
                 marginBottom: 16,
                 borderWidth: 1,
-                borderColor: theme.metallicBorder,
+                borderColor: theme.separator,
               }}
             >
               <Text style={{ fontSize: 28, color: theme.textSecondary }}>
@@ -366,9 +366,9 @@ export default function ChatsScreen() {
                 marginTop: 8,
                 marginHorizontal: 16,
                 borderRadius: 8,
-                backgroundColor: theme.metallicLight,
+                backgroundColor: theme.highlight,
                 borderWidth: 1,
-                borderColor: theme.metallicBorder,
+                borderColor: theme.separator,
               }}
             >
               <Text style={{ fontSize: 18, marginRight: 8, color: '#007AFF' }}>
@@ -432,14 +432,14 @@ export default function ChatsScreen() {
             </Text>
             <TextInput
               style={{
-                backgroundColor: theme.metallicLight,
+                backgroundColor: theme.highlight,
                 borderRadius: 8,
                 padding: 12,
                 fontSize: 16,
                 color: theme.text,
                 marginBottom: 20,
                 borderWidth: 1,
-                borderColor: theme.metallicBorder,
+                borderColor: theme.separator,
               }}
               placeholder="Enter new title"
               placeholderTextColor={theme.textSecondary}
@@ -456,10 +456,10 @@ export default function ChatsScreen() {
                   paddingVertical: 12,
                   marginRight: 8,
                   borderRadius: 8,
-                  backgroundColor: theme.metallicLight,
+                  backgroundColor: theme.highlight,
                   alignItems: 'center',
                   borderWidth: 1,
-                  borderColor: theme.metallicBorder,
+                  borderColor: theme.separator,
                 }}
               >
                 <Text style={{ fontSize: 16, color: theme.textSecondary }}>Cancel</Text>

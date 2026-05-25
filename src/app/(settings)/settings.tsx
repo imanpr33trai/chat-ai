@@ -15,7 +15,7 @@ import Animated, { FadeInUp } from 'react-native-reanimated'
 import { useChat } from '@/hooks/use-chat-store'
 import { useModels } from '@/hooks/use-models'
 import { useTheme } from '@/hooks/use-theme'
-import { clearApiKey, loadApiKey, setApiKey } from '@/lib/api-key'
+import { clearApiKey, getApiKey, loadApiKey, setApiKey } from '@/lib/api-key'
 import {
   clearModelCache,
   mergeIntoCache,
@@ -45,8 +45,8 @@ function SettingsRow({
         paddingHorizontal: 16,
         paddingVertical: 12,
         backgroundColor: pressed
-          ? theme.backgroundSelected
-          : theme.backgroundElement
+          ? theme.separator
+          : theme.highlight
       })}
     >
       <View style={{ flex: 1 }}>
@@ -113,7 +113,7 @@ function ModelRadioItem({
           alignItems: 'center',
           paddingHorizontal: 16,
           paddingVertical: 10,
-          backgroundColor: pressed ? theme.backgroundSelected : 'transparent'
+          backgroundColor: pressed ? theme.separator : 'transparent'
         })}
       >
         <View
@@ -220,12 +220,19 @@ export default function SettingsScreen() {
       const timeoutId = setTimeout(() => controller.abort(), 180_000)
 
       // Use proxy directly when available (native), otherwise Expo API route (dev SSR)
-      const modelsCheckEndpoint = process.env.EXPO_PUBLIC_API_URL
-        ? `${process.env.EXPO_PUBLIC_API_URL}/v1/models/check`
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || ''
+      const modelsCheckEndpoint = apiUrl
+        ? `${apiUrl}/api/models/check`
         : '/api/models/check'
+
+      // Send the API key as x-api-key if available (the check endpoint forwards it as Bearer)
+      const apiKey = getApiKey()
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (apiKey) headers['x-api-key'] = apiKey
+
       const res = await fetch(modelsCheckEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ model: modelId, timeout: 160_000 }),
         signal: controller.signal
       })
@@ -363,7 +370,7 @@ export default function SettingsScreen() {
                     style={{
                       fontSize: 15,
                       color: theme.text,
-                      backgroundColor: theme.backgroundElement,
+                      backgroundColor: theme.highlight,
                       borderRadius: 8,
                       paddingHorizontal: 10,
                       paddingVertical: 8,
@@ -428,7 +435,7 @@ export default function SettingsScreen() {
                         paddingVertical: 6,
                         paddingHorizontal: 12,
                         borderRadius: 6,
-                        backgroundColor: theme.backgroundElement,
+                        backgroundColor: theme.highlight,
                         opacity: pressed ? 0.7 : 1
                       })}
                     >
@@ -536,8 +543,8 @@ export default function SettingsScreen() {
                               paddingVertical: 4,
                               borderRadius: 6,
                               backgroundColor: pressed
-                                ? theme.backgroundSelected
-                                : theme.backgroundElement
+                                ? theme.separator
+                                : theme.highlight
                             })}
                           >
                             <Text style={{ fontSize: 12, color: '#007AFF' }}>
@@ -611,7 +618,7 @@ export default function SettingsScreen() {
                         <View
                           style={{
                             height: 0.5,
-                            backgroundColor: theme.backgroundSelected,
+                            backgroundColor: theme.separator,
                             marginLeft: 16
                           }}
                         />
@@ -746,7 +753,7 @@ export default function SettingsScreen() {
             <SectionHeader title={section.title} />
             <View
               style={{
-                backgroundColor: theme.backgroundElement,
+                backgroundColor: theme.highlight,
                 marginHorizontal: 16,
                 borderRadius: 12,
                 borderCurve: 'continuous',

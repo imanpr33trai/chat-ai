@@ -74,7 +74,7 @@ function EditMessageModal({
           </Text>
           <View
             style={{
-              backgroundColor: theme.backgroundElement,
+              backgroundColor: theme.highlight,
               borderRadius: 12,
               padding: 12,
               marginBottom: 16,
@@ -163,7 +163,7 @@ function SearchModal({
             paddingHorizontal: 16,
             paddingVertical: 12,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.backgroundSelected,
+            borderBottomColor: theme.separator,
           }}
         >
           <Pressable onPress={onClose} style={{ marginRight: 16 }}>
@@ -178,7 +178,7 @@ function SearchModal({
             flexDirection: "row",
             alignItems: "center",
             margin: 16,
-            backgroundColor: theme.backgroundElement,
+            backgroundColor: theme.highlight,
             borderRadius: 10,
             paddingHorizontal: 12,
           }}
@@ -219,7 +219,7 @@ function SearchModal({
                 paddingHorizontal: 16,
                 paddingVertical: 12,
                 borderBottomWidth: 0.5,
-                borderBottomColor: theme.backgroundSelected,
+                borderBottomColor: theme.separator,
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
@@ -282,7 +282,7 @@ function ModelPickerSheet({
             paddingHorizontal: 16,
             paddingVertical: 12,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.backgroundSelected,
+            borderBottomColor: theme.separator,
           }}
         >
           <Pressable onPress={onClose} hitSlop={12}>
@@ -300,7 +300,7 @@ function ModelPickerSheet({
             flexDirection: 'row',
             alignItems: 'center',
             margin: 12,
-            backgroundColor: theme.backgroundElement,
+            backgroundColor: theme.highlight,
             borderRadius: 10,
             paddingHorizontal: 12,
           }}
@@ -370,9 +370,9 @@ function ModelPickerSheet({
                         paddingHorizontal: 16,
                         paddingVertical: 12,
                         backgroundColor:
-                          isSelected ? theme.backgroundSelected : pressed ? theme.backgroundElement : 'transparent',
+                          isSelected ? theme.separator : pressed ? theme.highlight : 'transparent',
                         borderBottomWidth: 0.5,
-                        borderBottomColor: theme.backgroundSelected,
+                        borderBottomColor: theme.separator,
                       })}
                     >
                       <View
@@ -463,7 +463,7 @@ function DateSeparator({ date }: { date: Date }) {
         paddingHorizontal: 16,
       }}
     >
-      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.backgroundSelected }} />
+      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.separator }} />
       <Text
         style={{
           fontSize: 12,
@@ -474,7 +474,7 @@ function DateSeparator({ date }: { date: Date }) {
       >
         {label}
       </Text>
-      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.backgroundSelected }} />
+      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.separator }} />
     </View>
   );
 }
@@ -687,7 +687,7 @@ export function ChatView({ id }: { id: string }) {
           paddingVertical: 8,
           paddingHorizontal: 16,
           borderBottomWidth: 0.5,
-          borderBottomColor: theme.backgroundSelected,
+          borderBottomColor: theme.separator,
           backgroundColor: theme.background,
           opacity: isThisStreaming ? 0.5 : pressed ? 0.7 : 1,
         })}
@@ -736,7 +736,7 @@ export function ChatView({ id }: { id: string }) {
             paddingVertical: 8,
             backgroundColor: theme.background,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.backgroundSelected,
+            borderBottomColor: theme.separator,
           }}
         >
           <TextInput
@@ -749,7 +749,7 @@ export function ChatView({ id }: { id: string }) {
               flex: 1,
               fontSize: 15,
               color: theme.text,
-              backgroundColor: theme.backgroundElement,
+              backgroundColor: theme.highlight,
               borderRadius: 8,
               paddingHorizontal: 10,
               paddingVertical: 6,
@@ -809,7 +809,7 @@ export function ChatView({ id }: { id: string }) {
                 width: 56,
                 height: 56,
                 borderRadius: 28,
-                backgroundColor: theme.backgroundElement,
+                backgroundColor: theme.highlight,
                 justifyContent: "center",
                 alignItems: "center",
                 marginBottom: 12,

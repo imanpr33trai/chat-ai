@@ -29,7 +29,7 @@ async function checkSingle(model: string, timeoutMs = 10_000, bearerToken?: stri
     if (!reader) return false
 
     const { done, value } = await reader.read()
-    reader.cancel()
+    await reader.cancel()
 
     if (done) return false
     const raw = new TextDecoder().decode(value)

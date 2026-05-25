@@ -88,7 +88,7 @@ export default function NewChatScreen() {
                   paddingVertical: 14,
                   borderRadius: 12,
                   borderCurve: "continuous",
-                  backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement,
+                  backgroundColor: isSelected ? theme.separator : theme.highlight,
                   marginBottom: 8,
                   opacity: pressed ? 0.8 : 1,
                 })}
@@ -133,7 +133,7 @@ export default function NewChatScreen() {
                         paddingHorizontal: 6,
                         paddingVertical: 2,
                         borderRadius: 4,
-                        backgroundColor: theme.backgroundSelected,
+                        backgroundColor: theme.separator,
                       }}
                     >
                       <Text
@@ -175,7 +175,7 @@ export default function NewChatScreen() {
         </Text>
         <View
           style={{
-            backgroundColor: theme.backgroundElement,
+            backgroundColor: theme.highlight,
             borderRadius: 12,
             borderCurve: "continuous",
             paddingHorizontal: 14,

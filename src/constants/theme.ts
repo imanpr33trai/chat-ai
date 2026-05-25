@@ -1,87 +1,109 @@
-import '@/global.css';
+import "@/global.css";
 
-import { Platform } from 'react-native';
+import { Platform } from "react-native";
+
+/**
+ * Minimal aesthetic color palette.
+ * Clean neutrals, subtle separators, a single accent blue.
+ * No heavy metallic or layered gray tones — just essential contrast.
+ */
 
 export const Colors = {
-  light: {
-    text: '#1A1C1E',
-    background: '#F2F3F5',
-    backgroundElement: '#E8ECF0',
-    backgroundSelected: '#D4D9E0',
-    textSecondary: '#6B7280',
-    surface: '#FFFFFF',
-    border: '#D1D5DB',
-    accent: '#4A5568',
-    accentLight: '#718096',
-    metallicLight: '#F8F9FA',
-    metallicDark: '#E2E5EA',
-    metallicMid: '#D5D8DD',
-    metallicBorder: '#C8CCD2',
-    messageBubble: '#E8ECF0',
-    messageBubbleOwn: '#D4D9E0',
-    tabBarBackground: 'rgba(255,255,255,0.88)',
-    inputBackground: '#E8ECF0',
-    danger: '#DC3C42',
-    success: '#34A853',
-  },
-  dark: {
-    text: '#EAECEF',
-    background: '#1A1C1E',
-    backgroundElement: '#2C2E33',
-    backgroundSelected: '#3A3C42',
-    textSecondary: '#9CA3AF',
-    surface: '#222428',
-    border: '#33363B',
-    accent: '#8B9BB5',
-    accentLight: '#6B7E9A',
-    metallicLight: '#2E3035',
-    metallicDark: '#1E2024',
-    metallicMid: '#25282D',
-    metallicBorder: '#35383D',
-    messageBubble: '#2C2E33',
-    messageBubbleOwn: '#3A3C42',
-    tabBarBackground: 'rgba(26,28,30,0.88)',
-    inputBackground: '#2C2E33',
-    danger: '#E5534B',
-    success: '#3FB561',
-  },
+     light: {
+          // Base
+          background: "#FFFFFF",
+          surface: "#F8F9FA",
+          text: "#1A1A1A",
+          textSecondary: "#8E8E93",
+          textTertiary: "#C7C7CC",
+
+          // Accent
+          accent: "#007AFF",
+          accentDimmed: "#E8F1FF",
+
+          // UI elements
+          separator: "#E5E5EA",
+          highlight: "#F2F2F7",
+
+          // Component tokens
+          bubbleUser: "#E8F1FF",
+          bubbleAssistant: "#F2F2F7",
+          inputBackground: "#F2F2F7",
+          tabBarBackground: "rgba(255,255,255,0.85)",
+          overlay: "rgba(0,0,0,0.3)",
+
+          // Semantic
+          danger: "#FF3B30",
+          success: "#34C759",
+          warning: "#FF9500",
+     },
+     dark: {
+          background: "#000000",
+          surface: "#1C1C1E",
+          text: "#F5F5F5",
+          textSecondary: "#8E8E93",
+          textTertiary: "#48484A",
+
+          accent: "#0A84FF",
+          accentDimmed: "#1A2A4A",
+
+          separator: "#38383A",
+          highlight: "#2C2C2E",
+
+          bubbleUser: "#1A2A4A",
+          bubbleAssistant: "#1C1C1E",
+          inputBackground: "#1C1C1E",
+          tabBarBackground: "rgba(0,0,0,0.85)",
+          overlay: "rgba(0,0,0,0.5)",
+
+          danger: "#FF453A",
+          success: "#30D158",
+          warning: "#FF9F0A",
+     },
 } as const satisfies Record<string, Record<string, string>>;
 
 export type ThemeColors = typeof Colors.light;
 export type ColorKey = keyof ThemeColors;
 
-export type ThemeColor = keyof typeof Colors.light;
+export const Spacing = {
+     xs: 4,
+     sm: 8,
+     md: 12,
+     lg: 16,
+     xl: 20,
+     "2xl": 24,
+     "3xl": 32,
+     "4xl": 48,
+} as const;
 
 export const Fonts = Platform.select({
-  ios: {
-    sans: 'system-ui',
-    serif: 'ui-serif',
-    rounded: 'ui-rounded',
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-sans)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
+     ios: {
+          sans: "system-ui",
+          serif: "ui-serif",
+          rounded: "ui-rounded",
+          mono: "ui-monospace",
+     },
+     default: {
+          sans: "System",
+          serif: "serif",
+          rounded: "System",
+          mono: "monospace",
+     },
+     web: {
+          sans: "var(--font-sans)",
+          serif: "var(--font-serif)",
+          rounded: "var(--font-rounded)",
+          mono: "var(--font-mono)",
+     },
 });
 
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+export const BorderRadius = {
+     sm: 6,
+     md: 10,
+     lg: 14,
+     xl: 20,
+     full: 9999,
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const MaxContentWidth = 720;

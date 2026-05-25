@@ -9,8 +9,8 @@ import {
   Platform,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
-
 import { useTheme } from '@/hooks/use-theme'
+import { Spacing, BorderRadius } from '@/constants/theme'
 
 type ChatListItemProps = {
   title: string
@@ -51,22 +51,22 @@ export function ChatListItem({
 }: ChatListItemProps) {
   const theme = useTheme()
   const translateX = useRef(new Animated.Value(0)).current
-  const SWIPE_THRESHOLD = -80
+  const SWIPE_THRESHOLD = -Spacing.lg // -16
 
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gs) =>
-        Math.abs(gs.dx) > 10 && Math.abs(gs.dx) > Math.abs(gs.dy),
+        Math.abs(gs.dx) > Spacing.xs && Math.abs(gs.dx) > Math.abs(gs.dy),
       onPanResponderMove: (_, gs) => {
         if (gs.dx < 0) {
-          translateX.setValue(Math.max(gs.dx, -120))
+          translateX.setValue(Math.max(gs.dx, -Spacing['2xl'])) // -32
         }
       },
       onPanResponderRelease: (_, gs) => {
         if (gs.dx < SWIPE_THRESHOLD) {
           // Snap to reveal delete
           Animated.spring(translateX, {
-            toValue: -80,
+            toValue: -Spacing.lg, // -16
             useNativeDriver: true,
           }).start()
         } else {
@@ -81,17 +81,23 @@ export function ChatListItem({
 
   const handleDelete = () => {
     if (Platform.OS === 'ios') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      Haptics.notificationAsync(
+        Haptics.NotificationFeedbackType.Warning,
+      )
     }
     Alert.alert('Delete Chat', `Delete "${title}"?`, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resetSwipe() },
+      {
+        text: 'Cancel',
+        style: 'cancel',
+        onPress: () => resetSwipe(),
+      },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
           Animated.timing(translateX, {
-            toValue: -400,
-            duration: 200,
+            toValue: -Spacing['4xl'], // -48
+            duration: Spacing.md * 10, // 120
             useNativeDriver: true,
           }).start(() => onDelete?.())
         },
@@ -118,14 +124,14 @@ export function ChatListItem({
             right: 0,
             top: 0,
             bottom: 0,
-            width: 80,
+            width: Spacing.lg, // 16
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: '#FF453A',
+            backgroundColor: theme.danger,
           }}
         >
-          <Pressable onPress={handleDelete} style={{ padding: 16 }}>
-            <Text style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>
+          <Pressable onPress={handleDelete} style={{ padding: Spacing.md }}>
+            <Text style={{ color: '#fff', fontSize: Spacing.xs, fontWeight: 600 }}>
               Delete
             </Text>
           </Pressable>
@@ -141,23 +147,31 @@ export function ChatListItem({
           style={({ pressed }) => ({
             flexDirection: 'row',
             alignItems: 'center',
-            paddingHorizontal: 16,
-            paddingVertical: 14,
-            backgroundColor: pressed ? theme.backgroundSelected : 'transparent',
+            paddingHorizontal: Spacing.md,
+            paddingVertical: Spacing.md,
+            backgroundColor: pressed
+              ? theme.separator
+              : 'transparent',
           })}
         >
           <View
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: '#007AFF',
+              width: Spacing.lg * 2.75, // 44
+              height: Spacing.lg * 2.75, // 44
+              borderRadius: BorderRadius.full,
+              backgroundColor: theme.accent,
               justifyContent: 'center',
               alignItems: 'center',
-              marginRight: 12,
+              marginRight: Spacing.md,
             }}
           >
-            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 600 }}>
+            <Text
+              style={{
+                color: '#fff',
+                fontSize: Spacing.lg, // 16
+                fontWeight: 600,
+              }}
+            >
               {title.charAt(0).toUpperCase()}
             </Text>
           </View>
@@ -172,7 +186,7 @@ export function ChatListItem({
             >
               <Text
                 style={{
-                  fontSize: 16,
+                  fontSize: Spacing.lg, // 16
                   fontWeight: 600,
                   color: theme.text,
                   flex: 1,
@@ -184,30 +198,34 @@ export function ChatListItem({
               {onRename && (
                 <Pressable
                   onPress={onRename}
-                  hitSlop={8}
-                  style={{ marginLeft: 4, padding: 2 }}
+                  hitSlop={Spacing.xs}
+                  style={{
+                    marginLeft: Spacing.xs,
+                    padding: Spacing.xs,
+                  }}
                 >
-                  <Text style={{ fontSize: 14, color: theme.textSecondary }}>
+                  <Text style={{ fontSize: Spacing.sm, color: theme.textSecondary }}>
                     ✎
                   </Text>
                 </Pressable>
               )}
               <Text
                 style={{
-                  fontSize: 12,
+                  fontSize: Spacing.xs,
                   color: theme.textSecondary,
-                  marginLeft: 8,
+                  marginLeft: Spacing.xs,
                   fontVariant: ['tabular-nums'],
                 }}
+                numberOfLines={1}
               >
                 {formatTime(timestamp)}
               </Text>
             </View>
             <Text
               style={{
-                fontSize: 14,
+                fontSize: Spacing.sm,
                 color: theme.textSecondary,
-                marginTop: 2,
+                marginTop: Spacing.xs,
               }}
               numberOfLines={1}
             >
@@ -215,11 +233,12 @@ export function ChatListItem({
             </Text>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: Spacing.xs,
                 color: theme.textSecondary,
-                marginTop: 2,
+                marginTop: Spacing.xs,
                 opacity: 0.6,
               }}
+              numberOfLines={1}
             >
               {shortName}
             </Text>

@@ -65,9 +65,9 @@ function ReplyPreview({
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 8,
-        backgroundColor: theme.metallicLight,
+        backgroundColor: theme.highlight,
         borderTopWidth: 0.5,
-        borderTopColor: theme.metallicBorder,
+        borderTopColor: theme.separator,
       }}
     >
       <View
@@ -113,9 +113,9 @@ function FormatToolbar({
         alignItems: 'center',
         paddingHorizontal: 12,
         paddingVertical: 8,
-        backgroundColor: theme.metallicLight,
+        backgroundColor: theme.highlight,
         borderTopWidth: 0.5,
-        borderTopColor: theme.metallicBorder,
+        borderTopColor: theme.separator,
         gap: 8,
       }}
     >
@@ -131,10 +131,10 @@ function FormatToolbar({
             paddingVertical: 6,
             borderRadius: 6,
             backgroundColor: pressed
-              ? theme.backgroundSelected
-              : theme.metallicLight,
+              ? theme.separator
+              : theme.highlight,
             borderWidth: 1,
-            borderColor: theme.metallicBorder,
+            borderColor: theme.separator,
           })}
         >
           <Text
@@ -155,9 +155,9 @@ function FormatToolbar({
           paddingHorizontal: 10,
           paddingVertical: 6,
           borderRadius: 6,
-          backgroundColor: pressed ? theme.backgroundSelected : theme.metallicLight,
+          backgroundColor: pressed ? theme.separator : theme.highlight,
           borderWidth: 1,
-          borderColor: theme.metallicBorder,
+          borderColor: theme.separator,
         })}
       >
         <Text style={{ fontSize: 14, color: theme.textSecondary }}>
@@ -276,9 +276,9 @@ export default function ChatInput({
       {showSlash && (
         <View
           style={{
-            backgroundColor: theme.metallicLight,
+            backgroundColor: theme.highlight,
             borderTopWidth: 0.5,
-            borderTopColor: theme.metallicBorder,
+            borderTopColor: theme.separator,
           }}
         >
           {filteredCommands.map((cmd) => (
@@ -291,10 +291,10 @@ export default function ChatInput({
                 paddingHorizontal: 12,
                 paddingVertical: 10,
                 backgroundColor: pressed
-                  ? theme.backgroundSelected
+                  ? theme.separator
                   : 'transparent',
                 borderBottomWidth: 0.5,
-                borderBottomColor: theme.metallicBorder,
+                borderBottomColor: theme.separator,
               })}
             >
               <Text style={{ fontSize: 14, fontWeight: 600, color: theme.text, marginRight: 8 }}>
@@ -314,9 +314,9 @@ export default function ChatInput({
           alignItems: 'flex-end',
           paddingHorizontal: 12,
           paddingVertical: 8,
-          backgroundColor: theme.metallicLight,
+          backgroundColor: theme.highlight,
           borderTopWidth: 1,
-          borderTopColor: theme.metallicBorder,
+          borderTopColor: theme.separator,
         }}
       >
         <Pressable
@@ -325,8 +325,8 @@ export default function ChatInput({
             padding: 8,
             borderRadius: 8,
             backgroundColor: pressed
-              ? theme.backgroundSelected
-              : theme.metallicLight,
+              ? theme.separator
+              : theme.highlight,
             marginRight: 4,
           })}
         >
@@ -339,7 +339,7 @@ export default function ChatInput({
             backgroundColor: theme.background,
             borderRadius: 8,
             borderWidth: 1,
-            borderColor: theme.metallicBorder,
+            borderColor: theme.separator,
             paddingHorizontal: 12,
             paddingVertical: 8,
             marginRight: 4,
@@ -370,7 +370,7 @@ export default function ChatInput({
             borderRadius: 8,
             backgroundColor: inputText.trim()
               ? '#007AFF'
-              : theme.metallicMid,
+              : theme.separator,
             opacity: inputText.trim() ? (pressed ? 0.8 : 1) : 0.5,
           })}
         >

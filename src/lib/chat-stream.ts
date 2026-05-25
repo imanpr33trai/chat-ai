@@ -1,5 +1,11 @@
 /**
- * SSE streaming client for /api/chat (OpenAI-compatible chunk parsing).
+ * SSE streaming client for the chat API.
+ *
+ * In production (native APK), the app has no local server — all API requests
+ * go to the remote EXPO_PUBLIC_API_URL which hosts both the Expo API routes
+ * (/api/chat, /api/models, /api/models/check) and proxies to NVIDIA.
+ *
+ * In dev mode (Expo web SSR), empty string means same-origin works.
  */
 
 export interface ToolCall {
@@ -28,16 +34,13 @@ interface StreamOptions {
 
 import { getApiKey } from './api-key';
 
-// In production (native APK), the app has no API route server running locally.
-// Send requests directly to the proxy URL at the OpenAI-compatible endpoint.
-// In dev mode (Expo web SSR), empty string means same-origin works, hitting the Expo API route.
+// Base URL for API requests.
+// When EXPO_PUBLIC_API_URL is set (production APK), requests go to the remote server.
+// When empty (dev web SSR), same-origin requests hit the local Expo API routes.
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || "";
-// If we have a proxy URL, use the OpenAI-compatible endpoint directly
-// to skip the Expo API route layer (which only exists on the SSR server).
-const CHAT_ENDPOINT = API_BASE ? `${API_BASE}/v1/chat/completions` : "/api/chat";
 
 /**
- * POST to /api/chat with stream:true, parse SSE chunks, and call callbacks.
+ * POST to the chat API with SSE streaming, parse chunks, call callbacks.
  * Returns the AbortController so the caller can cancel mid-stream.
  */
 export function startStream(
@@ -59,7 +62,7 @@ export function startStream(
   (async () => {
     try {
       const apiKey = getApiKey();
-      const res = await fetch(CHAT_ENDPOINT, {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
