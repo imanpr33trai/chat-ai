@@ -1,77 +1,151 @@
-name: Preview APK
+name: Build Android APK
 
 on:
-  pull_request:
-    branches:
-      - Singh
-
+  # pull_request:
+  #   types: [opened, synchronize, reopened]
+  push:
+    branches: [master, main]
   workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Build type"
+        required: true
+        default: "debug"
+        type: choice
+        options:
+          - debug
+          - release
 
 concurrency:
-  group: preview-${{ github.ref }}
+  group: android-build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  EXPO_PUBLIC_API_URL: https://api-gateway-dun-two.vercel.app
+  NODE_VERSION: 20
+
 jobs:
-  build-preview:
+  # ── Optional CI stage ────────────────────────
+  ci:
+    name: Lint & Typecheck
+    uses: ./.github/workflows/_ci.yml
+    with:
+      ref: ${{ github.sha }}
+
+  # ── Build job (needs CI) ─────────────────────
+  build:
+    name: Build APK (${{ matrix.build_type }})
+    needs: ci
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        build_type:
+          - ${{ (github.event_name == 'pull_request' && 'debug') || (github.event_name == 'push' && 'release') || github.event.inputs.build_type }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Node is required for expo-cli
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm" # or 'yarn' / 'bun' depending on your lockfile
+
+      # Optional: still use Bun if you prefer (but keep Node)
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
       - name: Install dependencies
-        run: bun install
+        run: |
+          if [ -f bun.lock ]; then
+            bun install
+          else
+            npm ci
+          fi
 
-      - name: Setup Expo & EAS
-        uses: expo/expo-github-action@v8
+      # ── Generate native project ──
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform android --clean
+
+      # ── Java & Gradle cache ──
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
         with:
-          expo-version: latest
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
 
-      - name: Start EAS Build (preview)
-        id: build
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
+
+      # ── Decode keystore only for release ──
+      - name: Decode Keystore
+        if: matrix.build_type == 'release'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          BUILD_ID=$(npx eas-cli build \
-            --platform android \
-            --profile preview \
-            --non-interactive \
-            --json \
-            | jq -r '.[0].id')
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
 
-      - name: Wait for build
+      # ── Build ──
+      - name: Build Android APK
+        env:
+          STORE_FILE: ${{ matrix.build_type == 'release' && 'release.keystore' || '' }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
-          sleep 30
-          while true; do
-            STATUS=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json | jq -r '.status')
-            if [ "$STATUS" = "FINISHED" ]; then
-              echo "Build completed"
-              break
-            elif [ "$STATUS" = "ERRORED" ]; then
-              echo "Build failed"
-              exit 1
-            fi
-            echo "Status: $STATUS. Waiting..."
-            sleep 60
-          done
+          cd android
+          if [ "${{ matrix.build_type }}" = "release" ]; then
+            ./gradlew assembleRelease \
+              -PMYAPP_RELEASE_STORE_FILE=$STORE_FILE \
+              -PMYAPP_RELEASE_STORE_PASSWORD=$STORE_PASSWORD \
+              -PMYAPP_RELEASE_KEY_ALIAS=$KEY_ALIAS \
+              -PMYAPP_RELEASE_KEY_PASSWORD=$KEY_PASSWORD \
+              --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
 
-      - name: Download APK
-        id: download
-        run: |
-          APK_URL=$(npx eas-cli build:view ${{ steps.build.outputs.build_id }} --json \
-            | jq -r '.artifacts.applicationArchiveUrl')
-          APK_FILENAME="app-preview-${{ github.sha }}.apk"
-          curl -fL -o "$APK_FILENAME" "$APK_URL"
-          echo "apk_path=$APK_FILENAME" >> $GITHUB_OUTPUT
-
+      # ── Upload ──
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: preview-apk
-          path: ${{ steps.download.outputs.apk_path }}
+          name: app-${{ matrix.build_type }}-${{ github.sha }}
+          path: android/app/build/outputs/apk/${{ matrix.build_type }}/app-${{ matrix.build_type }}.apk
           retention-days: 7
+          if-no-files-found: error
+
+  # ── PR comment (always runs) ────────────────
+  comment-pr:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Post result comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const status = '${{ needs.build.result }}';
+            const sha = '${{ github.sha }}'.substring(0,7);
+
+            let body;
+            if (status === 'success') {
+              body = `### ✅ Preview Build Ready\n**Commit:** \`${sha}\`\n\nDownload the debug APK from the **Artifacts** section below.\n\n[View run](${runUrl})`;
+            } else {
+              body = `### ❌ Preview Build Failed\n**Commit:** \`${sha}\`\n\nCheck the [Actions log](${runUrl}) for details.`;
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });

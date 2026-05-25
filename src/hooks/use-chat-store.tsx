@@ -31,6 +31,9 @@ export interface Message {
   starred?: boolean
   replyTo?: ReplyTo
   thinking?: string
+  images?: string[]  // base64 image data URIs for multimodal
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+  tool_calls?: { id: string; type: string; function: { name: string; arguments: string } }[]
 }
 
 export interface Conversation {
@@ -61,8 +64,13 @@ type Action =
   | { type: 'SET_DEFAULT_MODEL'; payload: string }
   | { type: 'CHANGE_MODEL'; payload: { conversationId: string; modelName: string } }
   | { type: 'REGENERATE_MESSAGE'; payload: { conversationId: string; messageId: string } }
+  | { type: 'UPDATE_CONVERSATION'; payload: { conversationId: string; updates: Partial<Pick<Conversation, 'title'>> } }
 
 function generateId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().slice(0, 8)
+  }
+  // Fallback for environments without crypto.randomUUID
   return Math.random().toString(36).substring(2, 10)
 }
 
@@ -155,6 +163,19 @@ function reducer(state: State, action: Action): State {
       newList[convIndex] = { ...newList[convIndex], modelName: action.payload.modelName }
       return { ...state, conversations: newList }
     }
+    case 'UPDATE_CONVERSATION': {
+      const convIndex = state.conversations.findIndex(
+        (c) => c.id === action.payload.conversationId,
+      )
+      if (convIndex === -1) return state
+      const newList = [...state.conversations]
+      newList[convIndex] = {
+        ...newList[convIndex],
+        ...action.payload.updates,
+        updatedAt: Date.now(),
+      }
+      return { ...state, conversations: newList }
+    }
     default:
       return state
   }
@@ -176,7 +197,7 @@ interface ChatContextValue {
   createChat: (title: string, modelName?: string) => string
   deleteChat: (id: string) => void
   deleteMessage: (conversationId: string, messageId: string) => void
-  sendMessage: (conversationId: string, content: string, replyTo?: ReplyTo) => void
+  sendMessage: (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[], temperature?: number, maxTokens?: number) => void
   editMessage: (conversationId: string, messageId: string, newContent: string) => void
   retryMessage: (conversationId: string, messageId: string) => void
   regenerateLastAssistant: (conversationId: string) => void
@@ -186,6 +207,7 @@ interface ChatContextValue {
   cancelStream: () => void
   setDefaultModel: (modelId: string) => void
   changeModel: (conversationId: string, modelName: string) => void
+  updateConversation: (conversationId: string, updates: Partial<Pick<Conversation, 'title'>>) => void
   getConversation: (id: string) => Conversation | undefined
   saveDraft: (conversationId: string, draft: string) => void
   clearDraft: (conversationId: string) => void
@@ -248,43 +270,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'DELETE_MESSAGE', payload: { conversationId, messageId } })
   }, [])
 
-  const sendMessage = useCallback(
-    (conversationId: string, content: string, replyTo?: ReplyTo) => {
-      const conv = state.conversations.find((c) => c.id === conversationId)
-      if (!conv) return
+  // ─── Shared streaming logic (avoids stale closure issues) ─────────────────
 
-      // --- add user message ---
-      const userMsg: Message = {
-        id: generateId(),
-        role: 'user',
-        content,
-        timestamp: Date.now(),
-        status: 'sending',
-        replyTo,
-      }
-      dispatch({
-        type: 'ADD_MESSAGE',
-        payload: { conversationId, message: userMsg },
-      })
-
-      // Clear draft when sending
-      setDrafts((prev) => {
-        const next = { ...prev }
-        delete next[conversationId]
-        return next
-      })
-
-      // --- prepare messages array for API (omit assistant content until stream done) ---
-      const apiMessages = [
-        ...conv.messages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-        { role: 'user' as const, content },
-      ]
-
-      // --- kick off streaming ---
-      // Reset refs for batching
+  const startStreamFromMessages = useCallback(
+    (conversationId: string, modelName: string, apiMessages: { role: string; content: string | null | { type: string; text?: string; image_url?: { url: string } }[] }[], temperature?: number, maxTokens?: number) => {
       streamingContentRef.current = ''
       streamingThinkingRef.current = ''
       setStreaming({ content: '', conversationId, thinking: '' })
@@ -293,24 +282,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const abort = new AbortController()
       abortRef.current = abort
 
-      // Update message status to 'sent' immediately (optimistic)
-      setTimeout(() => {
-        dispatch({
-          type: 'UPDATE_MESSAGE',
-          payload: {
-            conversationId,
-            messageId: userMsg.id,
-            updates: { status: 'sent' },
-          },
-        })
-      }, 100)
-
       startStream(
         {
-          model: conv.modelName,
+          model: modelName,
           messages: apiMessages,
           signal: abort.signal,
-          temperature: 0.7,
+          temperature: temperature ?? 0.7,
+          max_tokens: maxTokens,
         },
         {
           onToken: (token) => {
@@ -321,7 +299,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
             streamingThinkingRef.current += token
             scheduleFlush()
           },
-          onDone: (fullContent, thinkingContent) => {
+          onDone: (fullContent, thinkingContent, toolCalls, usage) => {
             if (rafIdRef.current !== null) {
               cancelAnimationFrame(rafIdRef.current)
               rafIdRef.current = null
@@ -333,6 +311,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
               timestamp: Date.now(),
               status: 'delivered',
               thinking: thinkingContent,
+              tool_calls: toolCalls,
+              usage,
             }
             dispatch({
               type: 'ADD_MESSAGE',
@@ -363,7 +343,71 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         },
       )
     },
-    [state.conversations],
+    [scheduleFlush],
+  )
+
+  const sendMessage = useCallback(
+    (conversationId: string, content: string, replyTo?: ReplyTo, images?: string[], temperature?: number, maxTokens?: number) => {
+      const conv = state.conversations.find((c) => c.id === conversationId)
+      if (!conv) return
+
+      // --- add user message ---
+      const userMsg: Message = {
+        id: generateId(),
+        role: 'user',
+        content,
+        timestamp: Date.now(),
+        status: 'sending',
+        replyTo,
+        images,
+      }
+      dispatch({
+        type: 'ADD_MESSAGE',
+        payload: { conversationId, message: userMsg },
+      })
+
+      // Clear draft when sending
+      setDrafts((prev) => {
+        const next = { ...prev }
+        delete next[conversationId]
+        return next
+      })
+
+      // --- prepare messages array for API (multimodal content arrays for images) ---
+      function formatContent(msgContent: string, msgImages?: string[]): string | { type: string; text?: string; image_url?: { url: string } }[] {
+        if (!msgImages || msgImages.length === 0) return msgContent
+        const parts: { type: string; text?: string; image_url?: { url: string } }[] = []
+        if (msgContent) parts.push({ type: 'text', text: msgContent })
+        for (const img of msgImages) parts.push({ type: 'image_url', image_url: { url: img } })
+        return parts
+      }
+
+      const apiMessages = [
+        ...conv.messages
+          .filter((m) => m.status !== 'failed')
+          .map((m) => ({
+            role: m.role,
+            content: formatContent(m.content, m.images),
+          })),
+        { role: 'user' as const, content: formatContent(content, images) },
+      ]
+
+      // --- kick off streaming via shared helper ---
+      startStreamFromMessages(conversationId, conv.modelName, apiMessages, temperature, maxTokens)
+
+      // Update message status to 'sent' immediately (optimistic)
+      setTimeout(() => {
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            conversationId,
+            messageId: userMsg.id,
+            updates: { status: 'sent' },
+          },
+        })
+      }, 100)
+    },
+    [state.conversations, startStreamFromMessages],
   )
 
   const editMessage = useCallback(
@@ -382,78 +426,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const msgIndex = conv.messages.findIndex((m) => m.id === messageId)
       if (msgIndex === -1) return
       // Get all messages up to and including this edited one
-      const apiMessages = conv.messages.slice(0, msgIndex).map((m) => ({
+      const apiMessages = conv.messages.slice(0, msgIndex)
+        .filter((m) => m.status !== 'failed')
+        .map((m) => ({
         role: m.role,
         content: m.content,
       }))
       apiMessages.push({ role: 'user' as const, content: newContent })
-
-      streamingContentRef.current = ''
-      streamingThinkingRef.current = ''
-      setStreaming({ content: '', conversationId, thinking: '' })
-      abortRef.current?.abort()
-      const abort = new AbortController()
-      abortRef.current = abort
-
-      startStream(
-        {
-          model: conv.modelName,
-          messages: apiMessages,
-          signal: abort.signal,
-          temperature: 0.7,
-        },
-        {
-          onToken: (token) => {
-            streamingContentRef.current += token
-            scheduleFlush()
-          },
-          onThinkingToken: (token) => {
-            streamingThinkingRef.current += token
-            scheduleFlush()
-          },
-          onDone: (fullContent, thinkingContent) => {
-            if (rafIdRef.current !== null) {
-              cancelAnimationFrame(rafIdRef.current)
-              rafIdRef.current = null
-            }
-            const aiMsg: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: fullContent,
-              timestamp: Date.now(),
-              status: 'delivered',
-              thinking: thinkingContent,
-            }
-            dispatch({
-              type: 'ADD_MESSAGE',
-              payload: { conversationId, message: aiMsg },
-            })
-            setStreaming({ content: '', conversationId: null, thinking: '' })
-            abortRef.current = null
-          },
-          onError: (err) => {
-            if (rafIdRef.current !== null) {
-              cancelAnimationFrame(rafIdRef.current)
-              rafIdRef.current = null
-            }
-            const errMsg: Message = {
-              id: generateId(),
-              role: 'assistant',
-              content: `Error: ${err.message}`,
-              timestamp: Date.now(),
-              status: 'failed',
-            }
-            dispatch({
-              type: 'ADD_MESSAGE',
-              payload: { conversationId, message: errMsg },
-            })
-            setStreaming({ content: '', conversationId: null, thinking: '' })
-            abortRef.current = null
-          },
-        },
-      )
+      startStreamFromMessages(conversationId, conv.modelName, apiMessages)
     },
-    [state.conversations],
+    [state.conversations, startStreamFromMessages],
   )
 
   const retryMessage = useCallback(
@@ -465,9 +447,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const msg = conv.messages[msgIndex]
       // Remove the failed message and re-send
       dispatch({ type: 'DELETE_MESSAGE', payload: { conversationId, messageId } })
-      sendMessage(conversationId, msg.content)
+      // Build API messages WITHOUT the just-deleted message to avoid stale closure
+      const apiMessages = conv.messages
+        .filter((m) => m.id !== messageId && m.status !== 'failed')
+        .map((m) => ({ role: m.role, content: m.content }))
+      apiMessages.push({ role: 'user' as const, content: msg.content })
+      startStreamFromMessages(conversationId, conv.modelName, apiMessages)
     },
-    [state.conversations, sendMessage],
+    [state.conversations, sendMessage, startStreamFromMessages],
   )
 
   const regenerateLastAssistant = useCallback(
@@ -478,22 +465,49 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       for (let i = conv.messages.length - 1; i >= 0; i--) {
         const msg = conv.messages[i]
         if (msg.role === 'assistant') {
-          // Remove this assistant message and regenerate
-          dispatch({ type: 'DELETE_MESSAGE', payload: { conversationId, messageId: msg.id } })
+          const idsToDelete = [msg.id]
           // Also remove the user message before it if it triggered this response
+          let userContent = ''
           if (i > 0) {
             const prevMsg = conv.messages[i - 1]
             if (prevMsg.role === 'user') {
-              dispatch({ type: 'DELETE_MESSAGE', payload: { conversationId, messageId: prevMsg.id } })
-              sendMessage(conversationId, prevMsg.content)
-              return
+              idsToDelete.push(prevMsg.id)
+              userContent = prevMsg.content
             }
           }
+          if (!userContent) return
+
+          // Batch-delete in the store
+          for (const id of idsToDelete) {
+            dispatch({ type: 'DELETE_MESSAGE', payload: { conversationId, messageId: id } })
+          }
+
+          // Build API messages WITHOUT the deleted ones (from stale state, which still has them)
+          const deleteIds = new Set(idsToDelete)
+          const apiMessages = conv.messages
+            .filter((m) => !deleteIds.has(m.id) && m.status !== 'failed')
+            .map((m) => ({ role: m.role, content: m.content }))
+          apiMessages.push({ role: 'user' as const, content: userContent })
+
+          // Add a new user message to the store
+          const userMsg: Message = {
+            id: generateId(),
+            role: 'user',
+            content: userContent,
+            timestamp: Date.now(),
+            status: 'sent',
+          }
+          dispatch({
+            type: 'ADD_MESSAGE',
+            payload: { conversationId, message: userMsg },
+          })
+
+          startStreamFromMessages(conversationId, conv.modelName, apiMessages)
           return
         }
       }
     },
-    [state.conversations, sendMessage],
+    [state.conversations, startStreamFromMessages],
   )
 
   const toggleReaction = useCallback(
@@ -594,6 +608,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'CHANGE_MODEL', payload: { conversationId, modelName } })
   }, [])
 
+  const updateConversation = useCallback(
+    (conversationId: string, updates: Partial<Pick<Conversation, 'title'>>) => {
+      dispatch({ type: 'UPDATE_CONVERSATION', payload: { conversationId, updates } })
+    },
+    [],
+  )
+
   const getConversation = useCallback(
     (id: string) => state.conversations.find((c) => c.id === id),
     [state.conversations],
@@ -619,6 +640,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         cancelStream,
         setDefaultModel,
         changeModel,
+        updateConversation,
         getConversation,
         saveDraft,
         clearDraft,

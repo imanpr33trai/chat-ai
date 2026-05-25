@@ -2,14 +2,14 @@ import React from 'react'
 import {
   View,
   Text,
+  StyleSheet,
   Modal,
   Pressable,
-  StyleSheet,
   Platform,
 } from 'react-native'
 import * as Haptics from 'expo-haptics'
-
 import { useTheme } from '@/hooks/use-theme'
+import { Spacing, BorderRadius } from '@/constants/theme'
 import type { Reaction } from '@/hooks/use-chat-store'
 
 type MessageAction = {
@@ -44,16 +44,30 @@ export function MessageContextMenu({ visible, onClose, actions, position }: Prop
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={{ ...StyleSheet.absoluteFillObject, backgroundColor: theme.overlay }} onPress={onClose}>
         <View
           style={[
-            styles.menu,
             {
-              backgroundColor: theme.background === '#ffffff'
-                ? 'rgba(255, 255, 255, 0.95)'
-                : 'rgba(28, 28, 30, 0.95)',
-              borderColor: theme.backgroundSelected,
+              minWidth: 200,
+              maxWidth: 280,
+              borderRadius: BorderRadius.lg,
+              borderWidth: StyleSheet.hairlineWidth,
+              borderColor: theme.separator,
+              overflow: 'hidden',
+              backgroundColor: theme.surface,
+              ...Platform.select({
+                ios: {
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.15,
+                  shadowRadius: 12,
+                },
+                android: {
+                  elevation: 8,
+                },
+              }),
             },
+            position && { position: 'absolute', left: position.x, top: position.y },
           ]}
         >
           {actions.map((action, index) => (
@@ -61,27 +75,34 @@ export function MessageContextMenu({ visible, onClose, actions, position }: Prop
               key={action.label}
               onPress={() => handleAction(action)}
               style={({ pressed }) => [
-                styles.menuItem,
-                pressed && { backgroundColor: theme.backgroundSelected },
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: Spacing.md,
+                  paddingHorizontal: Spacing.lg,
+                  backgroundColor: pressed ? theme.separator : 'transparent',
+                },
                 index < actions.length - 1 && {
-                  borderBottomWidth: 0.5,
-                  borderBottomColor: theme.backgroundSelected,
+                  borderBottomWidth: StyleSheet.hairlineWidth,
+                  borderColor: theme.separator,
                 },
               ]}
             >
-              <Text
-                style={[
-                  styles.menuIcon,
-                  { color: action.destructive ? '#FF453A' : theme.text },
-                ]}
+              <View
+                style={{
+                  width: 24,
+                  height: 24,
+                  marginRight: Spacing.sm,
+                }}
               >
-                {action.icon}
-              </Text>
+                <Text style={{ fontSize: 20 }}>{action.icon}</Text>
+              </View>
               <Text
-                style={[
-                  styles.menuLabel,
-                  { color: action.destructive ? '#FF453A' : theme.text },
-                ]}
+                style={{
+                  fontSize: Spacing.md,
+                  color: action.destructive ? theme.danger : theme.text,
+                  fontWeight: 500,
+                }}
               >
                 {action.label}
               </Text>
@@ -134,31 +155,49 @@ export function ReactionPicker({ visible, onClose, onSelect, currentReactions }:
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={{ ...StyleSheet.absoluteFillObject, backgroundColor: theme.overlay }} onPress={onClose}>
         <View
-          style={[
-            styles.reactionPicker,
-            {
-              backgroundColor: theme.background === '#ffffff'
-                ? 'rgba(255, 255, 255, 0.95)'
-                : 'rgba(28, 28, 30, 0.95)',
-              borderColor: theme.backgroundSelected,
-            },
-          ]}
+          style={{
+            flexDirection: 'row',
+            borderRadius: BorderRadius.lg,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: theme.separator,
+            padding: Spacing.sm,
+            backgroundColor: theme.surface,
+            ...Platform.select({
+              ios: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.15,
+                shadowRadius: 12,
+              },
+              android: {
+                elevation: 8,
+              },
+            }),
+          }}
         >
           {REACTIONS.map((r) => (
             <Pressable
               key={r.reaction}
               onPress={() => handleSelect(r.reaction)}
               style={({ pressed }) => [
-                styles.reactionButton,
-                pressed && { backgroundColor: theme.backgroundSelected },
+                {
+                  width: 44,
+                  height: 44,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderRadius: BorderRadius.md,
+                  backgroundColor: pressed
+                    ? theme.separator
+                    : 'transparent',
+                },
                 currentReactions?.includes(r.reaction) && {
-                  backgroundColor: theme.backgroundSelected,
+                  backgroundColor: theme.accentDimmed,
                 },
               ]}
             >
-              <Text style={styles.reactionEmoji}>{r.emoji}</Text>
+              <Text style={{ fontSize: 24 }}>{r.emoji}</Text>
             </Pressable>
           ))}
         </View>
@@ -166,73 +205,3 @@ export function ReactionPicker({ visible, onClose, onSelect, currentReactions }:
     </Modal>
   )
 }
-
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  menu: {
-    minWidth: 200,
-    maxWidth: 280,
-    borderRadius: 14,
-    borderWidth: 0.5,
-    overflow: 'hidden',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  menuIcon: {
-    fontSize: 18,
-    width: 28,
-    textAlign: 'center',
-  },
-  menuLabel: {
-    fontSize: 16,
-    marginLeft: 12,
-  },
-  reactionPicker: {
-    flexDirection: 'row',
-    borderRadius: 24,
-    borderWidth: 0.5,
-    padding: 8,
-    gap: 4,
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
-  },
-  reactionButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 22,
-  },
-  reactionEmoji: {
-    fontSize: 24,
-  },
-})

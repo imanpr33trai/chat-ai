@@ -11,8 +11,12 @@ export default function AppTabs() {
   return (
     <NativeTabs
       backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}
+      labelStyle={{
+        fontSize: 14,
+        fontWeight: 600,
+        color: colors.textSecondary,
+        selected: { color: colors.accent },
+      }}
     >
       <NativeTabs.Trigger name="(chats)">
         <NativeTabs.Trigger.Icon sf="message.fill" md="chat" />

@@ -2,6 +2,7 @@ import * as Clipboard from "expo-clipboard";
 import { Stack } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Modal,
@@ -11,16 +12,15 @@ import {
   Text,
   TextInput,
   View,
-  ActivityIndicator,
 } from "react-native";
 
-import { ChatInput } from "@/components/chat-input";
+import ChatInput from "@/components/chat-input";
 import { ChatMessage, ThinkingBubble } from "@/components/chat-message";
 import { TypingIndicator } from "@/components/typing-indicator";
 import type { Reaction, ReplyTo } from "@/hooks/use-chat-store";
 import { useChat } from "@/hooks/use-chat-store";
-import { useTheme } from "@/hooks/use-theme";
 import { useModels } from "@/hooks/use-models";
+import { useTheme } from "@/hooks/use-theme";
 
 // ─── Edit Modal ─────────────────────────────────────────────────
 
@@ -74,7 +74,7 @@ function EditMessageModal({
           </Text>
           <View
             style={{
-              backgroundColor: theme.backgroundElement,
+              backgroundColor: theme.highlight,
               borderRadius: 12,
               padding: 12,
               marginBottom: 16,
@@ -126,12 +126,12 @@ function SearchModal({
   visible: boolean;
   onClose: () => void;
   onSearch: (query: string) => void;
-  messages: Array<{ id: string; content: string; role: string }>;
+  messages: { id: string; content: string; role: string }[];
 }) {
   const theme = useTheme();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<
-    Array<{ id: string; content: string; role: string; index: number }>
+    { id: string; content: string; role: string; index: number }[]
   >([]);
 
   useEffect(() => {
@@ -163,7 +163,7 @@ function SearchModal({
             paddingHorizontal: 16,
             paddingVertical: 12,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.backgroundSelected,
+            borderBottomColor: theme.separator,
           }}
         >
           <Pressable onPress={onClose} style={{ marginRight: 16 }}>
@@ -178,7 +178,7 @@ function SearchModal({
             flexDirection: "row",
             alignItems: "center",
             margin: 16,
-            backgroundColor: theme.backgroundElement,
+            backgroundColor: theme.highlight,
             borderRadius: 10,
             paddingHorizontal: 12,
           }}
@@ -219,7 +219,7 @@ function SearchModal({
                 paddingHorizontal: 16,
                 paddingVertical: 12,
                 borderBottomWidth: 0.5,
-                borderBottomColor: theme.backgroundSelected,
+                borderBottomColor: theme.separator,
               }}
             >
               <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
@@ -267,7 +267,7 @@ function ModelPickerSheet({
   for (const m of filtered) {
     const key = m.provider
     if (!groups[key]) groups[key] = []
-    groups[key]!.push(m)
+    groups[key].push(m)
   }
 
   return (
@@ -282,7 +282,7 @@ function ModelPickerSheet({
             paddingHorizontal: 16,
             paddingVertical: 12,
             borderBottomWidth: 0.5,
-            borderBottomColor: theme.backgroundSelected,
+            borderBottomColor: theme.separator,
           }}
         >
           <Pressable onPress={onClose} hitSlop={12}>
@@ -300,7 +300,7 @@ function ModelPickerSheet({
             flexDirection: 'row',
             alignItems: 'center',
             margin: 12,
-            backgroundColor: theme.backgroundElement,
+            backgroundColor: theme.highlight,
             borderRadius: 10,
             paddingHorizontal: 12,
           }}
@@ -370,9 +370,9 @@ function ModelPickerSheet({
                         paddingHorizontal: 16,
                         paddingVertical: 12,
                         backgroundColor:
-                          isSelected ? theme.backgroundSelected : pressed ? theme.backgroundElement : 'transparent',
+                          isSelected ? theme.separator : pressed ? theme.highlight : 'transparent',
                         borderBottomWidth: 0.5,
-                        borderBottomColor: theme.backgroundSelected,
+                        borderBottomColor: theme.separator,
                       })}
                     >
                       <View
@@ -463,7 +463,7 @@ function DateSeparator({ date }: { date: Date }) {
         paddingHorizontal: 16,
       }}
     >
-      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.backgroundSelected }} />
+      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.separator }} />
       <Text
         style={{
           fontSize: 12,
@@ -474,7 +474,7 @@ function DateSeparator({ date }: { date: Date }) {
       >
         {label}
       </Text>
-      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.backgroundSelected }} />
+      <View style={{ flex: 1, height: 0.5, backgroundColor: theme.separator }} />
     </View>
   );
 }
@@ -508,9 +508,15 @@ export function ChatView({ id }: { id: string }) {
     null,
   );
   const [showSearch, setShowSearch] = useState(false);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [, setShowSearchResults] = useState(false);
+  const [, setSearchQuery] = useState('');
   const [showModelSheet, setShowModelSheet] = useState(false);
+  // Message search within conversation
+  const [msgSearchQuery, setMsgSearchQuery] = useState('');
+  const [showMsgSearch, setShowMsgSearch] = useState(false);
+  const [msgMatchIndices, setMsgMatchIndices] = useState<number[]>([]);
+  const [currentMsgMatch, setCurrentMsgMatch] = useState(0);
+  const msgSearchRef = useRef<TextInput>(null);
 
   const conversation = getConversation(id);
   const isThisStreaming = isStreaming && streaming.conversationId === id;
@@ -527,12 +533,12 @@ export function ChatView({ id }: { id: string }) {
   const groupedMessages = useCallback(() => {
     if (!conversation) return [];
 
-    const groups: Array<{
+    const groups: {
       type: "date" | "message";
       date?: Date;
       message?: (typeof conversation.messages)[0];
       index?: number;
-    }> = [];
+    }[] = [];
 
     let lastDate: string | null = null;
 
@@ -547,6 +553,47 @@ export function ChatView({ id }: { id: string }) {
 
     return groups;
   }, [conversation?.messages]);
+
+  // Message search logic
+  const runMsgSearch = useCallback((query: string) => {
+    if (!query.trim() || !conversation) {
+      setMsgMatchIndices([]);
+      setCurrentMsgMatch(0);
+      return;
+    }
+    const q = query.toLowerCase();
+    const matches: number[] = [];
+    conversation.messages.forEach((msg, idx) => {
+      if (msg.content.toLowerCase().includes(q)) {
+        matches.push(idx);
+      }
+    });
+    setMsgMatchIndices(matches);
+    setCurrentMsgMatch(matches.length > 0 ? 0 : -1);
+  }, [conversation?.messages]);
+
+  const handleMsgSearchChange = (text: string) => {
+    setMsgSearchQuery(text);
+    runMsgSearch(text);
+  };
+
+  const scrollToMsg = (index: number) => {
+    // The message elements don't have refs, so we scroll the ScrollView
+    // and highlight by re-rendering with the match index
+    setCurrentMsgMatch(index);
+  };
+
+  const goToNextMatch = () => {
+    if (msgMatchIndices.length === 0) return;
+    const next = (currentMsgMatch + 1) % msgMatchIndices.length;
+    scrollToMsg(next);
+  };
+
+  const goToPrevMatch = () => {
+    if (msgMatchIndices.length === 0) return;
+    const prev = (currentMsgMatch - 1 + msgMatchIndices.length) % msgMatchIndices.length;
+    scrollToMsg(prev);
+  };
 
   if (!conversation) {
     return (
@@ -563,13 +610,13 @@ export function ChatView({ id }: { id: string }) {
     );
   }
 
-  const handleSend = (text: string, reply?: ReplyTo) => {
-    sendMessage(id, text, reply);
+  const handleSend = (text: string, reply?: ReplyTo, images?: string[]) => {
+    sendMessage(id, text, reply, images);
     setReplyTo(undefined);
   };
 
-  const handleCopy = (content: string) => {
-    Clipboard.setStringAsync(content);
+  const handleCopy =async (content: string) => {
+    await Clipboard.setStringAsync(content);
   };
 
   const handleStop = () => {
@@ -640,7 +687,7 @@ export function ChatView({ id }: { id: string }) {
           paddingVertical: 8,
           paddingHorizontal: 16,
           borderBottomWidth: 0.5,
-          borderBottomColor: theme.backgroundSelected,
+          borderBottomColor: theme.separator,
           backgroundColor: theme.background,
           opacity: isThisStreaming ? 0.5 : pressed ? 0.7 : 1,
         })}
@@ -658,7 +705,84 @@ export function ChatView({ id }: { id: string }) {
           {conversation.modelName}
         </Text>
         <Text style={{ fontSize: 11, color: theme.textSecondary, marginLeft: 4 }}>▾</Text>
+        {/* Message search toggle */}
+        <Pressable
+          onPress={() => {
+            setShowMsgSearch(!showMsgSearch);
+            if (!showMsgSearch) {
+              setTimeout(() => msgSearchRef.current?.focus(), 100);
+            } else {
+              setMsgSearchQuery('');
+              setMsgMatchIndices([]);
+              setCurrentMsgMatch(0);
+            }
+          }}
+          style={({ pressed }) => ({
+            marginLeft: 8,
+            opacity: pressed ? 0.6 : 0.5,
+          })}
+        >
+          <Text style={{ fontSize: 16 }}>🔍</Text>
+        </Pressable>
       </Pressable>
+
+      {/* Message search bar */}
+      {showMsgSearch && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 12,
+            paddingVertical: 8,
+            backgroundColor: theme.background,
+            borderBottomWidth: 0.5,
+            borderBottomColor: theme.separator,
+          }}
+        >
+          <TextInput
+            ref={msgSearchRef}
+            value={msgSearchQuery}
+            onChangeText={handleMsgSearchChange}
+            placeholder="Search messages..."
+            placeholderTextColor={theme.textSecondary}
+            style={{
+              flex: 1,
+              fontSize: 15,
+              color: theme.text,
+              backgroundColor: theme.highlight,
+              borderRadius: 8,
+              paddingHorizontal: 10,
+              paddingVertical: 6,
+            }}
+          />
+          {msgSearchQuery.length > 0 && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
+              <Text style={{ fontSize: 12, color: theme.textSecondary, marginRight: 6 }}>
+                {msgMatchIndices.length > 0
+                  ? `${currentMsgMatch + 1}/${msgMatchIndices.length}`
+                  : '0/0'}
+              </Text>
+              <Pressable onPress={goToPrevMatch} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 16, color: '#007AFF' }}>▲</Text>
+              </Pressable>
+              <Pressable onPress={goToNextMatch} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 16, color: '#007AFF' }}>▼</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  setShowMsgSearch(false);
+                  setMsgSearchQuery('');
+                  setMsgMatchIndices([]);
+                  setCurrentMsgMatch(0);
+                }}
+                style={{ padding: 4, marginLeft: 4 }}
+              >
+                <Text style={{ fontSize: 16, color: '#FF453A' }}>✕</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      )}
 
       <ScrollView
         ref={scrollRef}
@@ -685,7 +809,7 @@ export function ChatView({ id }: { id: string }) {
                 width: 56,
                 height: 56,
                 borderRadius: 28,
-                backgroundColor: theme.backgroundElement,
+                backgroundColor: theme.highlight,
                 justifyContent: "center",
                 alignItems: "center",
                 marginBottom: 12,
@@ -784,12 +908,9 @@ export function ChatView({ id }: { id: string }) {
 
       <ChatInput
         onSend={handleSend}
-        onStop={handleStop}
         onSaveDraft={(draft) => saveDraft(id, draft)}
-        initialDraft={drafts[id] || ""}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(undefined)}
-        isStreaming={isThisStreaming}
       />
 
       {/* Edit Modal */}

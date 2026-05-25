@@ -1,0 +1,182 @@
+name: Build & Release APK
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master]
+    tags: ["v*"] # triggers only version tags
+  workflow_dispatch:
+    inputs:
+      create_preview_release:
+        description: "Create a preview release with debug APK?"
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: apk-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # needed for creating releases
+  pull-requests: write
+
+env:
+  EXPO_PUBLIC_API_URL: https://api-gateway-dun-two.vercel.app
+  NODE_VERSION: 20
+
+jobs:
+  ci:
+    name: Lint & Typecheck
+    uses: ./.github/workflows/_ci.yml
+    with:
+      ref: ${{ github.sha }}
+
+  build:
+    name: Build APK
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      build_type: ${{ steps.set-type.outputs.build_type }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Determine build type dynamically
+      - id: set-type
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] || \
+             [ "${{ github.event_name }}" = "workflow_dispatch" ] && \
+             [ "${{ inputs.create_preview_release }}" = "true" ]; then
+            echo "build_type=debug" >> $GITHUB_OUTPUT
+          else
+            echo "build_type=release" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+
+      - name: Setup Bun (optional)
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: |
+          if [ -f bun.lock ]; then bun install; else npm ci; fi
+
+      - name: Expo Prebuild
+        run: npx expo prebuild --platform android --clean
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
+          cache: "gradle"
+
+      - name: Make Gradle executable
+        run: chmod +x android/gradlew
+
+      - name: Decode Keystore (only for release)
+        if: steps.set-type.outputs.build_type == 'release'
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+
+      - name: Build Android APK
+        env:
+          BUILD_TYPE: ${{ steps.set-type.outputs.build_type }}
+        run: |
+          cd android
+          if [ "$BUILD_TYPE" = "release" ]; then
+            ./gradlew assembleRelease \
+              -PMYAPP_RELEASE_STORE_FILE=release.keystore \
+              -PMYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
+              -PMYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }} \
+              -PMYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }} \
+              --no-daemon
+          else
+            ./gradlew assembleDebug --no-daemon
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-${{ steps.set-type.outputs.build_type }}-${{ github.sha }}
+          path: android/app/build/outputs/apk/${{ steps.set-type.outputs.build_type }}/app-${{ steps.set-type.outputs.build_type }}.apk
+          retention-days: 7
+          if-no-files-found: error
+
+  comment-pr:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Post result comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const status = '${{ needs.build.result }}';
+            const sha = '${{ github.sha }}'.substring(0,7);
+
+            let body;
+            if (status === 'success') {
+              body = `### ✅ Preview Build Ready\n**Commit:** \`${sha}\`\n\nDownload the debug APK from the **Artifacts** section below.\n\n[View run](${runUrl})`;
+            } else {
+              body = `### ❌ Preview Build Failed\n**Commit:** \`${sha}\`\n\nCheck the [Actions log](${runUrl}) for details.`;
+            }
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+  create-release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: |
+      (success() && (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))) ||
+      (success() && github.event_name == 'workflow_dispatch' && inputs.create_preview_release == true)
+    steps:
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-${{ needs.build.outputs.build_type }}-${{ github.sha }}
+          path: ./artifact
+
+      - name: Create GitHub Release (Production)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: Production signed APK
+          draft: false
+          prerelease: false
+          files: ./artifact/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create GitHub Release (Preview)
+        if: github.event_name == 'workflow_dispatch' && inputs.create_preview_release == true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: preview-${{ github.run_number }}
+          name: Preview Build from ${{ github.ref_name }}
+          body: |
+            Debug APK built from branch `${{ github.ref_name }}`
+            Commit: `${{ github.sha }}`
+          draft: false
+          prerelease: true
+          files: ./artifact/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

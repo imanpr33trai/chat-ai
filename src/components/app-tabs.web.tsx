@@ -1,98 +1,106 @@
+import { Colors } from '@/constants/theme'
+import type {
+  TabListProps,
+  TabTriggerSlotProps,
+} from 'expo-router/ui'
 import {
   TabList,
-  TabListProps,
   Tabs,
   TabSlot,
   TabTrigger,
-  TabTriggerSlotProps,
-} from "expo-router/ui";
-import React from "react";
-import { Pressable, StyleSheet, Text, useColorScheme, View } from "react-native";
-
-import { Colors } from "@/constants/theme";
+} from 'expo-router/ui'
+import React from 'react'
+import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native'
+import { Spacing, BorderRadius } from '@/constants/theme'
 
 export default function AppTabs() {
+  const scheme = useColorScheme()
+  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme]
+
   return (
     <Tabs>
-      <TabSlot style={{ height: "100%" }} />
+      <TabSlot style={{ flex: 1 }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="(chats)" href={"/"} asChild>
+          <TabTrigger name="(chats)" href="/" asChild>
             <TabButton>Chats</TabButton>
           </TabTrigger>
-          <TabTrigger name="(settings)" href={"/settings"} asChild>
+          <TabTrigger name="(settings)" href="/settings" asChild>
             <TabButton>Settings</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
     </Tabs>
-  );
+  )
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+  const scheme = useColorScheme()
+  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme]
+
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <View style={[styles.tabButtonView, { backgroundColor: isFocused ? "#007AFF" : "#E0E1E6" }]}>
-        <Text style={[styles.tabButtonText, { color: isFocused ? "#fff" : "#60646C" }]}>
+    <Pressable {...props} style={({ pressed }) => pressed && { opacity: 0.8 }}>
+      <View
+        style={{
+          minWidth: 80,
+          paddingVertical: Spacing.sm,
+          paddingHorizontal: Spacing.lg,
+          borderRadius: BorderRadius.md,
+          backgroundColor: isFocused ? colors.accentDimmed : 'transparent',
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: isFocused ? colors.accent : 'transparent',
+        }}
+      >
+        <Text
+          style={{
+            fontSize: Spacing.md,
+            fontWeight: 600,
+            color: isFocused ? colors.accent : colors.textSecondary,
+          }}
+        >
           {children}
         </Text>
       </View>
     </Pressable>
-  );
+  )
 }
 
-export function CustomTabList(props: TabListProps) {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === "unspecified" ? "light" : scheme];
+function CustomTabList({ children, ...props }: TabListProps) {
+  const scheme = useColorScheme()
+  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme]
 
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <View style={[styles.innerContainer, { backgroundColor: colors.backgroundElement }]}>
-        <Text style={[styles.brandText, { color: colors.text }]}>AI Chat</Text>
-        <View style={styles.spacer} />
-        {props.children}
+    <View
+      {...props}
+      style={{
+        position: 'absolute',
+        width: '100%',
+        padding: Spacing.lg,
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexDirection: 'row',
+      }}
+    >
+      <View
+        style={{
+          paddingVertical: Spacing.sm,
+          paddingHorizontal: Spacing['2xl'],
+          borderRadius: BorderRadius.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          flexGrow: 1,
+          gap: Spacing.sm,
+          maxWidth: 720,
+          backgroundColor: colors.tabBarBackground,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderColor: colors.separator,
+        }}
+      >
+        <Text style={{ fontSize: 14, fontWeight: 700, color: colors.text, marginRight: 'auto' }}>
+          AI Chat
+        </Text>
+        {children}
       </View>
     </View>
-  );
+  )
 }
-
-const styles = StyleSheet.create({
-  tabListContainer: {
-    position: "absolute",
-    width: "100%",
-    padding: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  innerContainer: {
-    paddingVertical: 8,
-    paddingHorizontal: 24,
-    borderRadius: 32,
-    flexDirection: "row",
-    alignItems: "center",
-    flexGrow: 1,
-    gap: 8,
-    maxWidth: 800,
-  },
-  brandText: {
-    fontSize: 14,
-    fontWeight: 700,
-    marginRight: "auto",
-  },
-  spacer: {
-    flex: 1,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  tabButtonView: {
-    paddingVertical: 4,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  tabButtonText: {
-    fontSize: 14,
-    fontWeight: 600,
-  },
-});

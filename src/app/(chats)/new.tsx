@@ -1,11 +1,11 @@
 import { Stack, useRouter } from "expo-router";
 import React, { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View, ActivityIndicator } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import Animated, { FadeInUp } from "react-native-reanimated";
 
 import { useChat } from "@/hooks/use-chat-store";
-import { useTheme } from "@/hooks/use-theme";
 import { useModels } from "@/hooks/use-models";
+import { useTheme } from "@/hooks/use-theme";
 
 export default function NewChatScreen() {
   const theme = useTheme();
@@ -25,7 +25,7 @@ export default function NewChatScreen() {
     if (message.trim()) {
       sendMessage(id, message.trim());
     }
-    router.replace(`/chat/${id}` as any);
+    router.replace(`/chat/${id}`);
   };
 
   return (
@@ -88,7 +88,7 @@ export default function NewChatScreen() {
                   paddingVertical: 14,
                   borderRadius: 12,
                   borderCurve: "continuous",
-                  backgroundColor: isSelected ? theme.backgroundSelected : theme.backgroundElement,
+                  backgroundColor: isSelected ? theme.separator : theme.highlight,
                   marginBottom: 8,
                   opacity: pressed ? 0.8 : 1,
                 })}
@@ -133,7 +133,7 @@ export default function NewChatScreen() {
                         paddingHorizontal: 6,
                         paddingVertical: 2,
                         borderRadius: 4,
-                        backgroundColor: theme.backgroundSelected,
+                        backgroundColor: theme.separator,
                       }}
                     >
                       <Text
@@ -175,7 +175,7 @@ export default function NewChatScreen() {
         </Text>
         <View
           style={{
-            backgroundColor: theme.backgroundElement,
+            backgroundColor: theme.highlight,
             borderRadius: 12,
             borderCurve: "continuous",
             paddingHorizontal: 14,
